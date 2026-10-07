@@ -1,0 +1,200 @@
+#!/bin/bash
+# motion: build, lint, screenshot and open motion-graphics explainers.
+# bash 3.2 compatible; needs Chrome or Chromium (headless) and openssl.
+set -eu
+
+self=$0
+while [ -L "$self" ]; do
+  l=$(readlink "$self")
+  case $l in /*) self=$l ;; *) self=$(dirname "$self")/$l ;; esac
+done
+ROOT=$(cd "$(dirname "$self")/.." && pwd)
+# Override with MOTION_CHROME=/path/to/chrome (any Chromium-based browser works).
+CHROME=${MOTION_CHROME:-}
+if [ -z "$CHROME" ]; then
+  for c in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "$(command -v google-chrome || true)" "$(command -v chromium || true)" "$(command -v chromium-browser || true)"; do
+    [ -n "$c" ] && [ -x "$c" ] && { CHROME=$c; break; }
+  done
+fi
+
+die() { echo "motion: $*" >&2; exit 1; }
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  motion build <name.scene.js> [out.html]  inline engine + scene into one HTML file, then lint it
+  motion check <file.html>                 lint: unknown ids, overlaps, text that does not fit
+  motion shot  <file.html> [step[@sec]]    PNG of every step's rest on one sheet; or one step full size,
+                                           optionally <sec> seconds into it (3@1.5) to check motion
+  motion open  <file.html> [WxH]           open in a chromeless app window (default 1440x900)
+  motion voice <name.scene.js> [voice] [speed]  narrate every step with the local Kokoro model into
+                                           <name>.voice/; the next build embeds it (default af_heart)
+EOF
+  exit 2
+}
+
+abspath() {
+  case "$1" in
+    /*) printf '%s\n' "$1" ;;
+    *) printf '%s/%s\n' "$(cd "$(dirname "$1")" && pwd)" "$(basename "$1")" ;;
+  esac
+}
+sha() { openssl dgst -sha256 -binary "$1" | openssl base64 -A; }
+
+# Throwaway profile per run: never touches the real Chrome profile or session.
+# Some Chrome builds finish the job but never exit (a managed extension keeps them
+# alive), so poll for the result, then stop every process using that profile.
+headless() {  # headless <dump|png-path> <args...>
+  [ -n "$CHROME" ] && [ -x "$CHROME" ] || die "Chrome not found; set MOTION_CHROME=/path/to/chrome"
+  want=$1
+  shift
+  prof=$(mktemp -d "${TMPDIR:-/tmp}/motion-chrome.XXXXXX")
+  "$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check \
+    --hide-scrollbars --force-device-scale-factor=1 --user-data-dir="$prof" "$@" > "$prof/out" 2>/dev/null &
+  pid=$!
+  i=0 last=-1
+  while [ $i -lt 300 ]; do
+    sleep 0.1
+    i=$((i + 1))
+    if [ "$want" = dump ]; then
+      grep -q '</html>' "$prof/out" 2>/dev/null && break
+    elif [ -s "$want" ]; then
+      size=$(wc -c < "$want")
+      [ "$size" = "$last" ] && break
+      last=$size
+    fi
+    kill -0 "$pid" 2>/dev/null || break
+  done
+  [ "$want" = dump ] && cat "$prof/out"
+  pkill -f "$prof" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  rm -rf "$prof"
+}
+
+# The engine writes its findings into <pre id="lint">; pull that text out of the DOM.
+lint_raw() {
+  headless dump --virtual-time-budget=5000 --window-size=1600,1000 --dump-dom "file://$1?${2:-lint}" |
+    awk '/<pre id="lint"/ { f = 1; sub(/.*<pre id="lint"[^>]*>/, "") }
+         f { if (sub(/<\/pre>.*/, "")) { print; exit } print }' |
+    sed -e 's/&lt;/</g' -e 's/&gt;/>/g' -e 's/&quot;/"/g' -e "s/&#39;/'/g" -e 's/&amp;/\&/g'
+}
+
+cmd_check() {
+  f=$(abspath "$1")
+  [ -f "$f" ] || die "no such file: $1"
+  out=$(lint_raw "$f")
+  [ -n "$out" ] || die "no lint output: the page did not load (motion open it to see the error)"
+  printf '%s\n' "$out" | grep -v '^motion-lint' | grep -v '^$' || true
+  if ! printf '%s\n' "$out" | grep -q '^steps '; then
+    echo "FAIL: the scene never booted"
+    return 1
+  fi
+  e=$(printf '%s\n' "$out" | grep -c '^error' || true)
+  w=$(printf '%s\n' "$out" | grep -c '^warn' || true)
+  if [ "$e" -gt 0 ]; then
+    echo "FAIL: $e error(s), $w warning(s)"
+    return 1
+  fi
+  if [ "$w" -gt 0 ]; then echo "OK with $w warning(s)"; else echo "OK: no issues"; fi
+}
+
+cmd_build() {
+  src=$(abspath "$1")
+  [ -f "$src" ] || die "no such file: $1"
+  if [ -n "${2:-}" ]; then out=$(abspath "$2"); else out=${src%.js}; out=${out%.scene}.html; fi
+  if grep -qi '</script' "$src"; then die "$1 contains '</script'; write it as '<\\/script'"; fi
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/motion-build.XXXXXX")
+  { printf '\n'; cat "$ROOT/engine/player.css"; } > "$tmp/css"
+  { printf '\n'; cat "$ROOT/engine/icons.js" "$ROOT/engine/player.js"; } > "$tmp/js"
+  { printf '\n'; cat "$src"; printf '\n'; } > "$tmp/scene"
+  voice=${src%.scene.js}.voice/voice.js
+  if [ -f "$voice" ] && grep -qi '</script' "$voice"; then die "$voice contains '</script'; run motion voice again"; fi
+  : > "$tmp/voice"
+  [ -f "$voice" ] && { printf '\n'; cat "$voice"; } > "$tmp/voice"
+  vhash=""
+  [ -s "$tmp/voice" ] && vhash=" 'sha256-$(sha "$tmp/voice")'"
+  # Hash-based CSP: only these exact inline blocks may run, and nothing loads from the network.
+  csp="default-src 'none'; script-src 'sha256-$(sha "$tmp/js")'$vhash 'sha256-$(sha "$tmp/scene")'; style-src 'sha256-$(sha "$tmp/css")'; img-src data:; media-src data:"
+  {
+    printf '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+    printf '<meta http-equiv="Content-Security-Policy" content="%s">\n' "$csp"
+    printf '<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>Explainer</title>\n'
+    printf '<!-- built by motion-explainer from %s; edit the scene, not this file -->\n' "$(basename "$src")"
+    printf '<style>'; cat "$tmp/css"; printf '</style>\n</head>\n<body>\n'
+    printf '<script>'; cat "$tmp/js"; printf '</script>\n'
+    [ -s "$tmp/voice" ] && { printf '<script>'; cat "$tmp/voice"; printf '</script>\n'; }
+    printf '<script>'; cat "$tmp/scene"; printf '</script>\n</body>\n</html>\n'
+  } > "$out.tmp"
+  mv "$out.tmp" "$out"
+  rm -rf "$tmp"
+  echo "built $out"
+  cmd_check "$out"
+}
+
+cmd_voice() {
+  src=$(abspath "$1")
+  [ -f "$src" ] || die "no such file: $1"
+  py="$HOME/.cache/motion-voice/venv/bin/python"
+  [ -x "$py" ] || die "voice needs the venv in ~/.cache/motion-voice (see REFERENCE.md, Voice)"
+  command -v node >/dev/null || die "voice needs node to read the scene"
+  command -v ffmpeg >/dev/null || die "voice needs ffmpeg"
+  set -o pipefail
+  node "$ROOT/tools/narration.mjs" "$src" | "$py" "$ROOT/tools/voice.py" "${src%.scene.js}.voice" "${2:-af_heart}" "${3:-1}"
+}
+
+cmd_shot() {
+  f=$(abspath "$1")
+  [ -f "$f" ] || die "no such file: $1"
+  dir=${MOTION_SHOTS:-${TMPDIR:-/tmp}/motion-shots}
+  mkdir -p "$dir"
+  base=$(basename "$f" .html)
+  if [ -n "${2:-}" ]; then
+    case "$2" in ''|*[!0-9@.]*|@*) die "want a step number, or step@seconds (3@1.5), got '$2'" ;; esac
+    step=${2%%@*}
+    q="still=$step"
+    case "$2" in *@*) q="$q&at=${2#*@}" ;; esac
+    png="$dir/$base-step$2.png"
+    rm -f "$png"
+    headless "$png" --window-size=1600,1000 --screenshot="$png" "file://$f?$q"
+  else
+    h=$(lint_raw "$f" sheet | awk '/^sheet-height / { print $2 }')
+    [ -n "$h" ] || die "could not lay out the sheet (run: motion check $1)"
+    png="$dir/$base-sheet.png"
+    rm -f "$png"
+    headless "$png" --window-size=1600,"$h" --screenshot="$png" "file://$f?sheet"
+  fi
+  [ -s "$png" ] || die "no screenshot written"
+  echo "$png"
+}
+
+cmd_open() {
+  f=$(abspath "$1")
+  [ -f "$f" ] || die "no such file: $1"
+  size=${2:-1440x900}
+  w=${size%x*}
+  h=${size#*x}
+  case "$w:$h" in *[!0-9:]*|:*|*:) die "bad size '$size', want WIDTHxHEIGHT" ;; esac
+  if [ -n "$CHROME" ] && [ -x "$CHROME" ]; then
+    # Own profile: no shared session with the real Chrome, no restore prompts.
+    prof="${TMPDIR:-/tmp}/claude-motion-profile"
+    mkdir -p "$prof"
+    "$CHROME" --app="file://$f" --window-size="$w,$h" --user-data-dir="$prof" \
+      --no-first-run --no-default-browser-check --disable-features=Translate,MediaRouter >/dev/null 2>&1 &
+    echo "opened $f"
+  else
+    if command -v open >/dev/null; then open "$f"; else xdg-open "$f"; fi
+    echo "opened in the default browser (Chrome not found): $f"
+  fi
+}
+
+[ $# -ge 2 ] || usage
+cmd=$1
+shift
+case "$cmd" in
+  build) cmd_build "$@" ;;
+  voice) cmd_voice "$@" ;;
+  check) cmd_check "$@" ;;
+  shot) cmd_shot "$@" ;;
+  open) cmd_open "$@" ;;
+  *) usage ;;
+esac

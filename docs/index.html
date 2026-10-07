@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>motion-explainer demos</title>
+<style>
+  :root { color-scheme: dark; --bg: #0d0f12; --fg: #e8eaed; --dim: #9aa0a6; --card: #16191e; --line: #2a2f36; --accent: #4c9dff; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, sans-serif; }
+  main { max-width: 880px; margin: 0 auto; padding: 48px 16px; }
+  h1 { margin: 0 0 4px; font-size: 32px; }
+  p { color: var(--dim); margin: 0 0 24px; }
+  img { width: 100%; border-radius: 10px; border: 1px solid var(--line); }
+  ul { list-style: none; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin: 24px 0; }
+  a { display: block; padding: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--fg); text-decoration: none; }
+  a:hover { border-color: var(--accent); }
+  a span { display: block; color: var(--dim); font-size: 14px; }
+  .src { display: inline; padding: 0; background: none; border: 0; color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>motion-explainer</h1>
+  <p>Motion-graphics explainers built by a Claude Code skill. Each one is a single HTML file. Press <b>Space</b> to play, <b>← →</b> to step, scroll to zoom.</p>
+  <img src="demo.gif" alt="Animated preview of the showcase explainer">
+  <ul>
+    <li><a href="gha-self-hosted-runner.html">GitHub Actions runners<span>Architecture, flows, zoom inside a box</span></a></li>
+    <li><a href="binary-search.html">Binary search<span>Algorithm, steps from a real run</span></a></li>
+    <li><a href="retry-jitter.html">Retries with jitter<span>An idea over time, live charts</span></a></li>
+    <li><a href="showcase.html">From git push to production<span>Icons, mockups, kinetic type, hud theme</span></a></li>
+  </ul>
+  <p>Source and setup: <a class="src" href="https://github.com/4lxn/motion-explainer">github.com/4lxn/motion-explainer</a></p>
+</main>
+</body>
+</html>

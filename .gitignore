@@ -1,0 +1,4 @@
+# built from *.scene.js by bin/motion build
+examples/*.html
+.DS_Store
+__pycache__/
