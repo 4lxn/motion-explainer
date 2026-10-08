@@ -1,0 +1,15 @@
+{
+  "name": "motion-explainer",
+  "description": "Motion-graphics explainers for Claude Code: pause, step and zoom through any idea.",
+  "owner": {
+    "name": "Alan Cervantes",
+    "url": "https://github.com/4lxn"
+  },
+  "plugins": [
+    {
+      "name": "motion-explainer",
+      "source": "./",
+      "description": "Explain anything as a motion-graphics animation you can pause, step through and zoom into."
+    }
+  ]
+}

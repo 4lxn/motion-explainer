@@ -1,22 +1,26 @@
 ---
 name: motion-explainer
 description: >-
-  Explain an idea, topic, architecture, system or algorithm as a MOTION-GRAPHICS animation in a player app: play/pause, next/previous step, scrub, speed, step mode, zoom in/out (scripted camera plus free zoom/pan; zoom into a component to see inside it). Triggers: /motion, "motion graphics", "animate this architecture / algorithm / system / flow", "an animation I can pause and step through", "explícamelo con una animación", "animación paso a paso". For a lesson PAGE (prose sections + small widgets, or Manim math) use animated-explainer; for a static diagram to paste into Jira/PR/wiki use diagram-design.
+  Explain an idea, topic, architecture, system or algorithm as a MOTION-GRAPHICS animation in a player app: play/pause, next/previous step, scrub, speed, step mode, zoom in/out (scripted camera plus free zoom/pan; zoom into a component to see inside it). Triggers: /motion-explainer, "motion graphics", "animate this architecture / algorithm / system / flow", "an animation I can pause and step through", "explícamelo con una animación", "animación paso a paso". Not for a static diagram to paste into a doc or ticket, or for anything one sentence answers.
 argument-hint: "[what to explain]"
 allowed-tools: Read, Write, Edit, Bash
 ---
 
-# /motion — motion-graphics explainer
+# motion-explainer
 
 You write a **scene** (a small JS file: elements + steps), the app turns it into one
 self-contained HTML player and opens it in a chromeless window. The viewer can play,
 pause, step with ← →, scrub the timeline, change speed, zoom and pan.
 
 ```sh
-APP="$HOME/.claude/skills/motion-explainer"          # where this skill is installed
+APP="${CLAUDE_SKILL_DIR}"                              # this skill's folder (plugin or ~/.claude/skills)
+[ -x "$APP/bin/motion" ] || APP="$HOME/.claude/skills/motion-explainer"
 OUT="${MOTION_OUT:-$HOME/explainers}"; mkdir -p "$OUT"  # durable home for scenes + built HTML
 export MOTION_SHOTS="${CLAUDE_JOB_DIR:-${TMPDIR:-/tmp}}/tmp"  # throwaway screenshots
 ```
+
+If any `motion` command fails with "Chrome not found" or a missing tool, run
+`"$APP/bin/motion" doctor` and pass its fix line to the user; don't guess.
 
 ## 1. Storyboard before code
 
@@ -31,16 +35,21 @@ Decide, in a few lines in your head (not a file):
 
 ## 2. Write the scene
 
-Read `$APP/REFERENCE.md` (the full format) and start from the closest example:
+Read `$APP/REFERENCE.md` (the full format), then start from the closest template:
 
-| Topic | Start from |
-|---|---|
-| architecture, system, request path, infra, "how X reaches Y" | `$APP/examples/gha-self-hosted-runner.scene.js` |
-| algorithm, data structure, step-by-step computation | `$APP/examples/binary-search.scene.js` |
-| idea or principle, behavior over time, load vs capacity, a chart that changes | `$APP/examples/retry-jitter.scene.js` |
-| product or release story, demo, launch: titles, icons, terminal/browser mockups, charts, `hud` theme | `$APP/examples/showcase.scene.js` |
+```sh
+"$APP/bin/motion" new "$OUT/<kebab-slug>" <template>   # writes $OUT/<kebab-slug>.scene.js
+```
 
-Write `$OUT/<kebab-slug>.scene.js`. House rules:
+| Topic | Template | Example it copies |
+|---|---|---|
+| architecture, system, request path, infra, "how X reaches Y" | `architecture` | `examples/gha-self-hosted-runner.scene.js` |
+| algorithm, data structure, step-by-step computation | `algorithm` | `examples/binary-search.scene.js` |
+| idea or principle, behavior over time, load vs capacity, a chart that changes | `idea` | `examples/retry-jitter.scene.js` |
+| product or release story, demo, launch: titles, icons, mockups, charts, `hud` theme | `story` | `examples/showcase.scene.js` |
+| none of these fit | (omit) | a two-box starter |
+
+Then rewrite it for the topic: keep the structure that fits, replace every element and step. House rules:
 - Declare **every** element up front (hidden); steps reveal and change them.
 - Color means something: `plain` by default, `ok`/`warn`/`bad`/`accent` for state.
 - Show movement with `flow` packets along arrows; use `focus` to point; `camera` for
@@ -49,7 +58,7 @@ Write `$OUT/<kebab-slug>.scene.js`. House rules:
   text, `glow`, `hud`) only where they carry meaning: an icon names a box, a chart shows a
   number that matters. Decoration never replaces the point.
 - For algorithms, run the algorithm in the scene's JS and push steps from it.
-- English content. No external URLs, fonts or scripts (the CSP blocks them anyway).
+- Write in the user's language. No external URLs, fonts or scripts (the CSP blocks them anyway).
 
 ## 3. Build until clean
 
@@ -57,7 +66,8 @@ Write `$OUT/<kebab-slug>.scene.js`. House rules:
 "$APP/bin/motion" build "$OUT/<slug>.scene.js"     # writes $OUT/<slug>.html, then lints it
 ```
 
-Errors fail the build (unknown ids, bad verbs, JS errors). Fix every warning
+Errors fail the build (unknown ids, bad verbs, JS errors); they name the scene line and
+suggest the closest valid name. Fix every warning
 (overlap, text doesn't fit, arrow crosses a box, off-canvas) or know why it's fine.
 
 ## 4. Look at it before the user does
@@ -108,5 +118,5 @@ double-click a box to zoom into it · **?** all keys. `#N` in the URL opens step
 `engine/player.css`, `bin/motion` (bash 3.2). Some Chrome builds never exit in headless
 mode, so `bin/motion` polls for the result and kills that throwaway profile.
 Run `$APP/test/run.sh` after any engine change: it lints every example and runs
-the player control, resource, voice, stale-clip and note-title tests. Icons live in
+the player control, resource, voice, CLI and lint tests. Icons live in
 `engine/icons.js`, which `bin/motion` inlines before the player.
