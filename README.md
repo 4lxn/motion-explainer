@@ -31,7 +31,7 @@ That DNS explainer is real and unedited: [watch it](https://4lxn.github.io/motio
 
 ## Why it's different
 
-|  |  |
+| | What it means for you |
 |---|---|
 | **A player, not a video** | Play, pause, step with `←` `→`, scrub, change speed. Viewers go at their own pace. |
 | **Zoom into anything** | Scroll or pinch to zoom, drag to pan, double-click a box to fly into it. Boxes can hold detail that only appears up close. |
