@@ -48,8 +48,9 @@ sha() { openssl dgst -sha256 -binary "$1" | openssl base64 -A; }
 # Throwaway profile per run: never touches the real Chrome profile or session.
 # Some Chrome builds finish the job but never exit (a managed extension keeps them
 # alive), so poll for the result, then stop every process using that profile.
+need_chrome() { [ -n "$CHROME" ] && [ -x "$CHROME" ] || die "Chrome not found; install Chrome or Chromium, or set MOTION_CHROME=/path/to/chrome (motion doctor checks the setup)"; }
 headless() {  # headless <dump|png-path> <args...>
-  [ -n "$CHROME" ] && [ -x "$CHROME" ] || die "Chrome not found; set MOTION_CHROME=/path/to/chrome"
+  need_chrome
   want=$1
   shift
   prof=$(mktemp -d "${TMPDIR:-/tmp}/motion-chrome.XXXXXX")
@@ -87,6 +88,7 @@ lint_raw() {
 cmd_check() {
   f=$(abspath "$1")
   [ -f "$f" ] || die "no such file: $1"
+  need_chrome
   out=$(lint_raw "$f")
   [ -n "$out" ] || die "no lint output: the page did not load (motion open it to see the error)"
   # A build passes the scene's first line in the HTML, so JS errors can name the scene line.
@@ -119,11 +121,12 @@ cmd_build() {
   tmp=$(mktemp -d "${TMPDIR:-/tmp}/motion-build.XXXXXX")
   { printf '\n'; cat "$ROOT/engine/player.css"; } > "$tmp/css"
   { printf '\n'; cat "$ROOT/engine/icons.js" "$ROOT/engine/player.js"; } > "$tmp/js"
-  { printf '\n'; cat "$src"; printf '\n'; } > "$tmp/scene"
+  # The HTML parser turns CRLF into LF before checking the CSP hash, so hash LF-only text.
+  { printf '\n'; tr -d '\r' < "$src"; printf '\n'; } > "$tmp/scene"
   voice=${src%.scene.js}.voice/voice.js
   if [ -f "$voice" ] && grep -qi '</script' "$voice"; then die "$voice contains '</script'; run motion voice again"; fi
   : > "$tmp/voice"
-  [ -f "$voice" ] && { printf '\n'; cat "$voice"; } > "$tmp/voice"
+  [ -f "$voice" ] && { printf '\n'; tr -d '\r' < "$voice"; } > "$tmp/voice"
   vhash=""
   [ -s "$tmp/voice" ] && vhash=" 'sha256-$(sha "$tmp/voice")'"
   # Hash-based CSP: only these exact inline blocks may run, and nothing loads from the network.
@@ -163,6 +166,7 @@ cmd_voice() {
 cmd_shot() {
   f=$(abspath "$1")
   [ -f "$f" ] || die "no such file: $1"
+  need_chrome
   dir=${MOTION_SHOTS:-${TMPDIR:-/tmp}/motion-shots}
   scale=${MOTION_SCALE:-1}  # 2 for retina-sharp PNGs
   mkdir -p "$dir"
@@ -210,6 +214,7 @@ cmd_new() {
   case "$1" in */*) dest=$1 ;; *) dest=./$1 ;; esac
   dest=${dest%.js}; dest=${dest%.scene}.scene.js
   [ -e "$dest" ] && die "$dest already exists; pick another name or edit it"
+  mkdir -p "$(dirname "$dest")"
   case "${2:-}" in
     '') starter > "$dest" ;;
     architecture) cp "$ROOT/examples/gha-self-hosted-runner.scene.js" "$dest" ;;

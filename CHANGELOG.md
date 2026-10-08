@@ -4,6 +4,17 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-07
+
+Found by an independent verification pass.
+
+### Fixed
+- Scenes with Windows (CRLF) line endings failed with a misleading CSP error. The build now hashes the text the browser sees.
+- `motion new some/dir/name` failed with a raw bash error when the folder did not exist; it now creates it.
+- A missing Chrome printed two errors, the second with wrong advice; now one message that points at `motion doctor`.
+- `test/run.sh` stops early with a clear message when `node` or `python3` is missing.
+- Docs no longer assume the git-clone path for `motion doctor` and the voice setup; plugin installs are covered.
+
 ## [1.1.0] - 2026-10-07
 
 ### Added
@@ -30,6 +41,7 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 First public release: scene engine and player, `motion build / check / shot / open / voice`, four examples, tests.
 
-[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/4lxn/motion-explainer/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/4lxn/motion-explainer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/4lxn/motion-explainer/releases/tag/v1.0.0

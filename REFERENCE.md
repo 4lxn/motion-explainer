@@ -152,7 +152,8 @@ Nothing is fetched at build or play time; the player's CSP stays `default-src 'n
 - Setup, once (about 270 MB in `~/.cache/motion-voice`):
 
 ```sh
-APP=~/.claude/skills/motion-explainer V=~/.cache/motion-voice; mkdir -p "$V"; python3 -m venv "$V/venv"
+APP=~/.claude/skills/motion-explainer   # the skill folder; plugin installs: APP=$(dirname "$(dirname "$(command -v motion)")")
+V=~/.cache/motion-voice; mkdir -p "$V"; python3 -m venv "$V/venv"
 "$V/venv/bin/pip" install -r "$APP/tools/voice-requirements.txt"   # every dependency pinned
 for f in kokoro-v1.0.int8.onnx voices-v1.0.bin; do
   curl -L -o "$V/$f" "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f"

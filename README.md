@@ -60,7 +60,7 @@ Pick one; if both are installed, the plugin copy wins. Then, in Claude Code:
 
 Or just say *"animate this architecture"* or *"explain it with an animation"*.
 
-Something off? `~/.claude/skills/motion-explainer/bin/motion doctor` checks Chrome, `openssl` and an end-to-end build, and prints the fix for anything missing.
+Something off? `motion doctor` (plugin installs put `motion` on Claude's PATH) or `~/.claude/skills/motion-explainer/bin/motion doctor` (git clone) checks Chrome, `openssl` and an end-to-end build, and prints the fix for anything missing.
 
 <details>
 <summary><b>Chrome in a non-standard place?</b></summary>
@@ -70,6 +70,8 @@ export MOTION_CHROME="/path/to/chrome-or-chromium"
 ```
 
 On Windows, run it inside WSL with Chromium installed. The built HTML plays in any modern browser on any OS.
+
+Headless Chrome won't start in Ubuntu 24.04 CI or containers? Allow its sandbox: `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0` (this repo's CI does the same).
 </details>
 
 ## Use the CLI directly

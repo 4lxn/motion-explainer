@@ -5,6 +5,9 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/motion-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 fail=0
+for t in node python3; do
+  command -v $t >/dev/null || { echo "test/run.sh needs $t (the voice tests use it); install it and run again"; exit 1; }
+done
 
 for s in "$ROOT"/examples/*.scene.js; do
   name=$(basename "$s" .scene.js)
@@ -91,6 +94,17 @@ if (cd "$tmp" && "$M" new starter > /dev/null && "$M" build starter.scene.js | g
   echo "ok   new: starter lints clean, no overwrite, unknown template refused"
 else
   echo "FAIL new"; fail=1
+fi
+
+# Windows line endings build clean; new creates missing folders; a missing Chrome is one clear error.
+printf "Motion.scene({ title: 't', elements: [{ id: 'a', type: 'box', x: 800, y: 450, label: 'A' }],\r\n  steps: [{ title: 's', do: [{ show: 'a' }] }] });\r\n" > "$tmp/crlf.scene.js"
+"$M" build "$tmp/crlf.scene.js" 2>&1 | grep -q '^OK: no issues' && echo "ok   CRLF scenes build clean" || { echo "FAIL CRLF scene"; fail=1; }
+(cd "$tmp" && "$M" new deep/er/topic > /dev/null) && [ -f "$tmp/deep/er/topic.scene.js" ] && echo "ok   new creates missing folders" || { echo "FAIL new into a new folder"; fail=1; }
+out=$(MOTION_CHROME=/nonexistent "$M" build "$tmp/crlf.scene.js" 2>&1 || true)
+if [ "$(printf '%s\n' "$out" | grep -c '^motion:')" = 1 ] && printf '%s\n' "$out" | grep -q 'Chrome not found'; then
+  echo "ok   missing Chrome is one clear error"
+else
+  echo "FAIL missing Chrome message"; printf '%s\n' "$out" | sed 's/^/     /'; fail=1
 fi
 
 # Lint suggests the closest name, and JS errors point at the scene's own line.

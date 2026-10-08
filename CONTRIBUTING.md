@@ -9,7 +9,7 @@ bin/motion doctor   # Chrome found, openssl found, a starter scene builds
 test/run.sh         # lints every example, then player, resource, voice, CLI and lint tests
 ```
 
-CI runs `test/run.sh` on Ubuntu and macOS for every push and pull request.
+The tests also need `node` and `python3` (standard library only). CI runs `test/run.sh` on Ubuntu and macOS for every push and pull request.
 
 ## Where things live
 
