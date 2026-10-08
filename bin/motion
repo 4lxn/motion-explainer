@@ -18,6 +18,7 @@ if [ -z "$CHROME" ]; then
   done
 fi
 
+TMP=${TMPDIR:-/tmp}; TMP=${TMP%/}
 die() { echo "motion: $*" >&2; exit 1; }
 usage() {
   cat <<'EOF'
@@ -53,7 +54,7 @@ headless() {  # headless <dump|png-path> <args...>
   need_chrome
   want=$1
   shift
-  prof=$(mktemp -d "${TMPDIR:-/tmp}/motion-chrome.XXXXXX")
+  prof=$(mktemp -d "$TMP/motion-chrome.XXXXXX")
   # Lint and shots must see the real motion even when the OS asks for reduced motion.
   "$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check --force-prefers-no-reduced-motion \
     --hide-scrollbars --force-device-scale-factor="${scale:-1}" --user-data-dir="$prof" "$@" > "$prof/out" 2>/dev/null &
@@ -118,7 +119,7 @@ cmd_build() {
   [ -f "$src" ] || die "no such file: $1"
   if [ -n "${2:-}" ]; then out=$(abspath "$2"); else out=${src%.js}; out=${out%.scene}.html; fi
   if grep -qi '</script' "$src"; then die "$1 contains '</script'; write it as '<\\/script'"; fi
-  tmp=$(mktemp -d "${TMPDIR:-/tmp}/motion-build.XXXXXX")
+  tmp=$(mktemp -d "$TMP/motion-build.XXXXXX")
   { printf '\n'; cat "$ROOT/engine/player.css"; } > "$tmp/css"
   { printf '\n'; cat "$ROOT/engine/icons.js" "$ROOT/engine/player.js"; } > "$tmp/js"
   # The HTML parser turns CRLF into LF before checking the CSP hash, so hash LF-only text.
@@ -167,13 +168,16 @@ cmd_shot() {
   f=$(abspath "$1")
   [ -f "$f" ] || die "no such file: $1"
   need_chrome
-  dir=${MOTION_SHOTS:-${TMPDIR:-/tmp}/motion-shots}
+  dir=${MOTION_SHOTS:-$TMP/motion-shots}
   scale=${MOTION_SCALE:-1}  # 2 for retina-sharp PNGs
   mkdir -p "$dir"
   base=$(basename "$f" .html)
   if [ -n "${2:-}" ]; then
     case "$2" in ''|*[!0-9@.]*|@*) die "want a step number, or step@seconds (3@1.5), got '$2'" ;; esac
     step=${2%%@*}
+    n=$(lint_raw "$f" | awk '/^steps / { print $2 }')
+    [ -n "$n" ] || die "the page did not boot (run: motion check $1)"
+    [ "$step" -ge 1 ] && [ "$step" -le "$n" ] || die "step $step is out of range; $1 has steps 1-$n"
     q="still=$step"
     case "$2" in *@*) q="$q&at=${2#*@}" ;; esac
     png="$dir/$base-step$2.png"
@@ -199,7 +203,7 @@ cmd_open() {
   h=${size#*x}
   if [ -n "$CHROME" ] && [ -x "$CHROME" ]; then
     # Own profile: no shared session with the real Chrome, no restore prompts.
-    prof="${TMPDIR:-/tmp}/claude-motion-profile"
+    prof="$TMP/motion-app-profile"
     mkdir -p "$prof"
     "$CHROME" --app="file://$f" --window-size="$w,$h" --user-data-dir="$prof" \
       --no-first-run --no-default-browser-check --disable-features=Translate,MediaRouter >/dev/null 2>&1 &
@@ -260,7 +264,7 @@ cmd_doctor() {
   else no "chrome: not found" "install Google Chrome or Chromium, or set MOTION_CHROME=/path/to/chrome"; fi
   if command -v openssl >/dev/null; then ok "openssl"; else no "openssl: not found" "install openssl (used for the page's CSP hashes)"; fi
   if [ "$bad" = 0 ]; then
-    t=$(mktemp -d "${TMPDIR:-/tmp}/motion-doctor.XXXXXX")
+    t=$(mktemp -d "$TMP/motion-doctor.XXXXXX")
     starter > "$t/doctor.scene.js"
     if r=$(cmd_build "$t/doctor.scene.js" 2>&1); then ok "end-to-end: built and linted a starter scene"
     else no "end-to-end build failed:" "see the output below, or file an issue with it"; printf '%s\n' "$r" | sed 's/^/      /'; fi

@@ -107,6 +107,9 @@ else
   echo "FAIL missing Chrome message"; printf '%s\n' "$out" | sed 's/^/     /'; fail=1
 fi
 
+out=$("$M" shot "$ROOT/docs/binary-search.html" 99 2>&1 || true)
+printf '%s\n' "$out" | grep -q 'step 99 is out of range; .* has steps 1-' && echo "ok   shot rejects a step past the end" || { echo "FAIL shot range"; printf '%s\n' "$out" | sed 's/^/     /'; fail=1; }
+
 # Lint suggests the closest name, and JS errors point at the scene's own line.
 cat > "$tmp/typo.scene.js" <<'EOF'
 Motion.scene({ title: 't', elements: [{ id: 'cache', type: 'bxo', x: 800, y: 450 }, { id: 'db', type: 'box', x: 400, y: 450 }],

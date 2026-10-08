@@ -4,6 +4,10 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+### Fixed
+- `motion shot f.html 99` silently showed the last step; out-of-range steps now fail with the valid range.
+- Shot paths no longer contain `//` when `TMPDIR` ends in a slash.
+
 ## [1.1.1] - 2026-10-07
 
 Found by an independent verification pass.
