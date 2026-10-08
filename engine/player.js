@@ -95,6 +95,21 @@ const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
 const smooth = (a, b, v) => { const p = clamp01((v - a) / (b - a)); return p * p * (3 - 2 * p); };
 const lerp = (a, b, p) => a + (b - a) * p;
 const list = v => v == null || v === false ? [] : Array.isArray(v) ? v : [v];
+// ' Did you mean 'x'?' for a typo within two edits of a known name, else ''.
+function near(word, names) {
+  const w = String(word), dist = (a, b) => {
+    let row = [...Array(b.length + 1).keys()];
+    for (let i = 1; i <= a.length; i++) {
+      const next = [i];
+      for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      row = next;
+    }
+    return row[b.length];
+  };
+  let best = null, bd = 3;
+  for (const n of names) { const d = dist(w.toLowerCase(), String(n).toLowerCase()); if (d < bd && d < w.length) { best = n; bd = d; } }
+  return best == null ? '' : ` Did you mean '${best}'?`;
+}
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
 const fmtT = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -308,7 +323,7 @@ function compile(spec) {
   for (const d of spec.elements || []) {
     if (!d || !d.id) { say('error', 0, 'an element has no id'); continue; }
     if (by[d.id]) { say('error', 0, `duplicate id '${d.id}'`); continue; }
-    if (!(d.type in LAYER)) { say('error', 0, `'${d.id}': unknown type '${d.type}' (use ${Object.keys(LAYER).join(', ')})`); continue; }
+    if (!(d.type in LAYER)) { say('error', 0, `'${d.id}': unknown type '${d.type}'.${near(d.type, Object.keys(LAYER)) || ` Use ${Object.keys(LAYER).join(', ')}.`}`); continue; }
     if (d.id === 'all' || d.id === 'canvas') { say('error', 0, `'${d.id}' is a reserved id`); continue; }
     const e = norm(d);
     els.push(e);
@@ -316,10 +331,10 @@ function compile(spec) {
   }
   for (const e of els) {
     if (e.type !== 'arrow') continue;
-    for (const end of [e.from, e.to]) if (!Array.isArray(end) && !by[end]) say('error', 0, `arrow '${e.id}': unknown endpoint '${end}'`);
+    for (const end of [e.from, e.to]) if (!Array.isArray(end) && !by[end]) say('error', 0, `arrow '${e.id}': unknown endpoint '${end}'.${near(end, Object.keys(by))}`);
   }
   for (const e of els) {
-    if (e.type === 'icon' && !MOTION_ICONS[e.name]) say('error', 0, `icon '${e.id}': unknown name '${e.name}' (see REFERENCE.md, Icons)`);
+    if (e.type === 'icon' && !MOTION_ICONS[e.name]) say('error', 0, `icon '${e.id}': unknown name '${e.name}'.${near(e.name, Object.keys(MOTION_ICONS)) || ' See REFERENCE.md, Icons.'}`);
     else if (e.type === 'box' && /^[a-z][a-z0-9-]+$/.test(e.icon || '') && !MOTION_ICONS[e.icon]) {
       say('warn', 0, `'${e.id}': '${e.icon}' is not a known icon, so it is drawn as text`);
     }
@@ -346,13 +361,13 @@ function compile(spec) {
   const tweens = [], fx = [], steps = [], voice = [];
   let si = 0;
   const tw = (id, p, b, t0, t1, k = 'num', e = 'inOut', amp) => {
-    if (!EASE[e]) { say('warn', si + 1, `unknown ease '${e}' (use ${Object.keys(EASE).join(', ')})`); e = 'inOut'; }
+    if (!EASE[e]) { say('warn', si + 1, `unknown ease '${e}'.${near(e, Object.keys(EASE)) || ` Use ${Object.keys(EASE).join(', ')}.`}`); e = 'inOut'; }
     tweens.push({ id, p, a: cur[id][p] ?? b, b, t0, t1, k, e, amp });
     cur[id][p] = b;
   };
   const known = id => {
     if (by[id]) return true;
-    say('error', si + 1, `unknown id '${id}'`);
+    say('error', si + 1, `unknown id '${id}'.${near(id, Object.keys(by))}`);
     return false;
   };
   const ids = v => list(v).filter(known);
@@ -510,7 +525,8 @@ function compile(spec) {
     for (const a of list(st.do)) {
       const vs = VERBS.filter(v => v in a);
       if (vs.length !== 1) {
-        say('error', k + 1, vs.length ? `one verb per action, got ${vs.join(' + ')}` : `action without a verb: ${JSON.stringify(a)} (verbs: ${VERBS.join(', ')})`);
+        const typo = Object.keys(a).map(key => near(key, VERBS)).find(Boolean);
+        say('error', k + 1, vs.length ? `one verb per action, got ${vs.join(' + ')}` : `action without a verb: ${JSON.stringify(a)}.${typo || ` Verbs: ${VERBS.join(', ')}.`}`);
         continue;
       }
       const s = a.at != null ? t0 + a.at : a.with ? gS : gE;
@@ -1632,6 +1648,7 @@ function scene(spec) {
       if (theme !== want) lint(`warn unknown theme '${want}' (use ${Object.keys(THEMES).join(', ')})`);
       document.documentElement.dataset.theme = theme;
       document.title = C.title;
+      if (!C.steps.length) return fatal('The scene has no steps. Add at least one { title, say, do: [...] }.');
       if (Q.has('sheet')) return sheet(C, theme);
       Motion.player = new Player(C, spec, theme);
     } catch (err) {

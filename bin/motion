@@ -20,8 +20,10 @@ fi
 
 die() { echo "motion: $*" >&2; exit 1; }
 usage() {
-  cat >&2 <<'EOF'
+  cat <<'EOF'
 usage:
+  motion new   <name> [template]           start <name>.scene.js: a minimal starter, or a template
+                                           (architecture, algorithm, idea, story)
   motion build <name.scene.js> [out.html]  inline engine + scene into one HTML file, then lint it
   motion check <file.html>                 lint: unknown ids, overlaps, text that does not fit
   motion shot  <file.html> [step[@sec]]    PNG of every step's rest on one sheet; or one step full size,
@@ -29,9 +31,11 @@ usage:
   motion open  <file.html> [WxH]           open in a chromeless app window (default 1440x900)
   motion voice <name.scene.js> [voice] [speed]  narrate every step with the local Kokoro model into
                                            <name>.voice/; the next build embeds it (default af_heart)
+  motion doctor                            check Chrome, openssl and the optional voice setup
+  motion --version
 EOF
-  exit 2
 }
+fail_usage() { echo "motion: $*" >&2; usage >&2; exit 2; }
 
 abspath() {
   case "$1" in
@@ -84,6 +88,14 @@ cmd_check() {
   [ -f "$f" ] || die "no such file: $1"
   out=$(lint_raw "$f")
   [ -n "$out" ] || die "no lint output: the page did not load (motion open it to see the error)"
+  # A build passes the scene's first line in the HTML, so JS errors can name the scene line.
+  if [ -n "${scene_l0:-}" ]; then
+    out=$(printf '%s\n' "$out" | awk -v l0="$scene_l0" -v name="$scene_name" -v last="$scene_lines" '
+      /^error js: .*\(line [0-9]+\)$/ {
+        n = $NF; sub(/\)$/, "", n)
+        if (n + 0 > l0) { k = n - l0; if (k > last) k = last; sub(/\(line [0-9]+\)$/, "(" name ":" k ")") }
+      } { print }')
+  fi
   printf '%s\n' "$out" | grep -v '^motion-lint' | grep -v '^$' || true
   if ! printf '%s\n' "$out" | grep -q '^steps '; then
     echo "FAIL: the scene never booted"
@@ -119,6 +131,7 @@ cmd_build() {
     printf '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
     printf '<meta http-equiv="Content-Security-Policy" content="%s">\n' "$csp"
     printf '<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>Explainer</title>\n'
+    printf '<link rel="icon" href="data:,">\n'
     printf '<!-- built by motion-explainer from %s; edit the scene, not this file -->\n' "$(basename "$src")"
     printf '<style>'; cat "$tmp/css"; printf '</style>\n</head>\n<body>\n'
     printf '<script>'; cat "$tmp/js"; printf '</script>\n'
@@ -128,6 +141,10 @@ cmd_build() {
   mv "$out.tmp" "$out"
   rm -rf "$tmp"
   echo "built $out"
+  # The scene block opens with "<script>" alone on a line; scene line k is HTML line l0 + k.
+  scene_l0=$(awk '$0 == "<script>" { n = NR } END { print n }' "$out")
+  scene_name=$(basename "$src")
+  scene_lines=$(awk 'END { print NR }' "$src")
   cmd_check "$out"
 }
 
@@ -172,9 +189,9 @@ cmd_open() {
   f=$(abspath "$1")
   [ -f "$f" ] || die "no such file: $1"
   size=${2:-1440x900}
+  case "$size" in *[!0-9x]*|x*|*x|*x*x*) die "bad size '$size', want WIDTHxHEIGHT (e.g. 1440x900)" ;; *x*) ;; *) die "bad size '$size', want WIDTHxHEIGHT (e.g. 1440x900)" ;; esac
   w=${size%x*}
   h=${size#*x}
-  case "$w:$h" in *[!0-9:]*|:*|*:) die "bad size '$size', want WIDTHxHEIGHT" ;; esac
   if [ -n "$CHROME" ] && [ -x "$CHROME" ]; then
     # Own profile: no shared session with the real Chrome, no restore prompts.
     prof="${TMPDIR:-/tmp}/claude-motion-profile"
@@ -188,14 +205,88 @@ cmd_open() {
   fi
 }
 
-[ $# -ge 2 ] || usage
+cmd_new() {
+  case "$1" in */*) dest=$1 ;; *) dest=./$1 ;; esac
+  dest=${dest%.js}; dest=${dest%.scene}.scene.js
+  [ -e "$dest" ] && die "$dest already exists; pick another name or edit it"
+  case "${2:-}" in
+    '') starter > "$dest" ;;
+    architecture) cp "$ROOT/examples/gha-self-hosted-runner.scene.js" "$dest" ;;
+    algorithm) cp "$ROOT/examples/binary-search.scene.js" "$dest" ;;
+    idea) cp "$ROOT/examples/retry-jitter.scene.js" "$dest" ;;
+    story) cp "$ROOT/examples/showcase.scene.js" "$dest" ;;
+    *) die "unknown template '$2' (use architecture, algorithm, idea or story)" ;;
+  esac
+  echo "wrote $dest"
+  echo "next: motion build $dest"
+}
+
+starter() {
+  cat <<'EOF'
+// A two-step starter. Declare every element up front (hidden), then reveal and move them in steps.
+// Full format: REFERENCE.md. Build with: motion build <this file>
+Motion.scene({
+  title: 'What this explains',
+  subtitle: 'One line: the point, in **plain words**',
+  elements: [
+    { id: 'client', type: 'box', x: 400, y: 450, label: 'Client' },
+    { id: 'server', type: 'box', x: 1200, y: 450, label: 'Server', tone: 'accent' },
+    { id: 'req', type: 'arrow', from: 'client', to: 'server', label: 'request' },
+    { id: 'tip', type: 'note', x: 800, y: 700, w: 520, title: 'Why it matters', text: 'One sentence the viewer should remember.' },
+  ],
+  steps: [
+    { title: 'Two parts', say: 'A **client** and a **server**.',
+      do: [{ show: 'client' }, { show: 'server' }] },
+    { title: 'A request', say: 'The client sends a request; the server answers.',
+      do: [{ show: 'req' }, { flow: 'req', label: 'GET' }, { flow: 'req', reverse: true, label: '200', tone: 'ok' }, { show: 'tip' }] },
+  ],
+});
+EOF
+}
+
+cmd_doctor() {
+  bad=0
+  ok() { printf 'ok    %s\n' "$*"; }
+  no() { printf 'FAIL  %s\n' "$1"; printf '      fix: %s\n' "$2"; bad=1; }
+  opt() { printf 'skip  %s\n' "$1"; printf '      to enable: %s\n' "$2"; }
+  echo "motion $(cat "$ROOT/VERSION") at $ROOT"
+  if [ -n "$CHROME" ] && [ -x "$CHROME" ]; then ok "chrome: $CHROME"
+  else no "chrome: not found" "install Google Chrome or Chromium, or set MOTION_CHROME=/path/to/chrome"; fi
+  if command -v openssl >/dev/null; then ok "openssl"; else no "openssl: not found" "install openssl (used for the page's CSP hashes)"; fi
+  if [ "$bad" = 0 ]; then
+    t=$(mktemp -d "${TMPDIR:-/tmp}/motion-doctor.XXXXXX")
+    starter > "$t/doctor.scene.js"
+    if r=$(cmd_build "$t/doctor.scene.js" 2>&1); then ok "end-to-end: built and linted a starter scene"
+    else no "end-to-end build failed:" "see the output below, or file an issue with it"; printf '%s\n' "$r" | sed 's/^/      /'; fi
+    rm -rf "$t"
+  fi
+  v="$HOME/.cache/motion-voice"
+  missing=""
+  command -v node >/dev/null || missing="$missing node"
+  command -v ffmpeg >/dev/null || missing="$missing ffmpeg"
+  [ -x "$v/venv/bin/python" ] || missing="$missing venv"
+  for m in kokoro-v1.0.int8.onnx voices-v1.0.bin; do [ -f "$v/$m" ] || missing="$missing $m"; done
+  if [ -z "$missing" ]; then ok "voice (optional): ready"
+  else opt "voice (optional): missing$missing" "REFERENCE.md, Voice"; fi
+  [ "$bad" = 0 ] && echo "ready" || return 1
+}
+
+case "${1:-}" in
+  ''|-h|--help|help) usage; exit 0 ;;
+  -v|--version|version) cat "$ROOT/VERSION"; exit 0 ;;
+  doctor) cmd_doctor; exit $? ;;
+esac
 cmd=$1
 shift
 case "$cmd" in
+  build|voice|check|shot|open|new) [ $# -ge 1 ] || fail_usage "$cmd needs a file" ;;
+  *) fail_usage "unknown command '$cmd'" ;;
+esac
+case "$cmd" in
+  new) cmd_new "$@" ;;
   build) cmd_build "$@" ;;
   voice) cmd_voice "$@" ;;
   check) cmd_check "$@" ;;
   shot) cmd_shot "$@" ;;
   open) cmd_open "$@" ;;
-  *) usage ;;
 esac

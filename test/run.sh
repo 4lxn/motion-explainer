@@ -74,4 +74,42 @@ if printf '%s\n' "$out" | grep -q '^test-pass' && printf '%s\n' "$out" | grep -q
 else
   echo "FAIL note titles"; printf '%s\n' "$out" | sed 's/^/     /'; fail=1
 fi
+# CLI: help is not an error, unknown commands are named, sizes are strict.
+M="$ROOT/bin/motion"
+if "$M" --help | grep -q '^usage:' && "$M" | grep -q '^usage:'; then echo "ok   help on stdout, exit 0"; else echo "FAIL help"; fail=1; fi
+if out=$("$M" frob x 2>&1); then echo "FAIL unknown command exits 0"; fail=1
+elif printf '%s\n' "$out" | grep -q "unknown command 'frob'"; then echo "ok   unknown command is named"; else echo "FAIL unknown command message"; fail=1; fi
+[ "$("$M" --version)" = "$(cat "$ROOT/VERSION")" ] && echo "ok   --version" || { echo "FAIL --version"; fail=1; }
+bad=0
+for s in 12 12x x9 1x2x3 axb; do "$M" open "$ROOT/docs/index.html" "$s" > /dev/null 2>&1 && bad=1; done
+[ $bad = 0 ] && echo "ok   open rejects malformed sizes" || { echo "FAIL open accepted a malformed size"; fail=1; }
+
+# new: the starter builds with no warnings, never overwrites, rejects unknown templates.
+if (cd "$tmp" && "$M" new starter > /dev/null && "$M" build starter.scene.js | grep -q '^OK: no issues') &&
+   ! (cd "$tmp" && "$M" new starter > /dev/null 2>&1) && ! (cd "$tmp" && "$M" new other nope > /dev/null 2>&1); then
+  echo "ok   new: starter lints clean, no overwrite, unknown template refused"
+else
+  echo "FAIL new"; fail=1
+fi
+
+# Lint suggests the closest name, and JS errors point at the scene's own line.
+cat > "$tmp/typo.scene.js" <<'EOF'
+Motion.scene({ title: 't', elements: [{ id: 'cache', type: 'bxo', x: 800, y: 450 }, { id: 'db', type: 'box', x: 400, y: 450 }],
+  steps: [{ title: 's', do: [{ show: 'dbb' }, { flwo: 'db' }] }] });
+EOF
+out=$("$M" build "$tmp/typo.scene.js" 2>&1 || true)
+if printf '%s\n' "$out" | grep -q "unknown type 'bxo'. Did you mean 'box'?" &&
+   printf '%s\n' "$out" | grep -q "unknown id 'dbb'. Did you mean 'db'?" &&
+   printf '%s\n' "$out" | grep -q "Did you mean 'flow'?"; then
+  echo "ok   lint suggests the closest type, id and verb"
+else
+  echo "FAIL did-you-mean"; printf '%s\n' "$out" | sed 's/^/     /'; fail=1
+fi
+printf "Motion.scene({ title: 't', elements: [], steps: [{ title: 's', do: [] }] });\n\nnotDefined();\n" > "$tmp/rt.scene.js"
+out=$("$M" build "$tmp/rt.scene.js" 2>&1 || true)
+if printf '%s\n' "$out" | grep -q 'notDefined is not defined (rt.scene.js:3)'; then
+  echo "ok   JS errors name the scene line"
+else
+  echo "FAIL JS error line"; printf '%s\n' "$out" | sed 's/^/     /'; fail=1
+fi
 exit $fail
