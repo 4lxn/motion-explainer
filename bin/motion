@@ -53,7 +53,8 @@ headless() {  # headless <dump|png-path> <args...>
   want=$1
   shift
   prof=$(mktemp -d "${TMPDIR:-/tmp}/motion-chrome.XXXXXX")
-  "$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check \
+  # Lint and shots must see the real motion even when the OS asks for reduced motion.
+  "$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check --force-prefers-no-reduced-motion \
     --hide-scrollbars --force-device-scale-factor="${scale:-1}" --user-data-dir="$prof" "$@" > "$prof/out" 2>/dev/null &
   pid=$!
   i=0 last=-1

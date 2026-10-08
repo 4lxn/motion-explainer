@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   st.paint(at('hero', 'op', .3));
   const words = Array.from(node('hero').lab.querySelectorAll('tspan tspan')), op = words.map(w => +w.getAttribute('opacity'));
-  ok('words fade in one after another', words.length === 5 && op[0] > op[4] && node('hero').lab.textContent === 'From git push to production', op);
+  ok('words fade in one after another', words.length === 5 && op[0] > op[4] && words.map(w => w.textContent.trim()).join(' ') === 'From git push to production', op);
 
   const t = at('done', 'op', .5);
   st.paint(t);
