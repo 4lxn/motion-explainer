@@ -12,22 +12,42 @@ A [Claude Code](https://claude.com/claude-code) skill. One prompt in, one self-c
 [![release](https://img.shields.io/github/v/release/4lxn/motion-explainer?color=0a84ff)](https://github.com/4lxn/motion-explainer/releases)
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-<img src="docs/demo.webp" alt="A motion-explainer animation: a terminal types git push, a pipeline lights up, a bar chart shrinks, a status page turns green" width="820">
+<a href="https://4lxn.github.io/motion-explainer/login-flow.html"><img src="docs/demo.webp" alt="A motion-explainer animation of a login: a terminal types a curl call, a packet passes through the API gateway, the camera zooms inside the auth service, a latency chart shows bcrypt dominating" width="820"></a>
+
+<sub>Made from one prompt. Click to play it yourself: pause, step, zoom.</sub>
 
 </div>
 
-## How it goes
+## One prompt in, one explainer out
+
+**Input**
 
 ```text
-you    > /motion-explainer how does DNS turn example.com into an IP?
-
-claude > 1. storyboards 10 steps and checks the facts (here: a real dig +trace)
-         2. writes a scene, builds it, lints it in headless Chrome
-         3. screenshots every step, fixes what looks wrong
-         4. opens the player
+/motion-explainer Explain a login flow. Icon on every box, a terminal mockup for the curl call,
+a latency chart, zoom into the auth service, hud theme.
 ```
 
-That DNS explainer is real and unedited: [watch it](https://4lxn.github.io/motion-explainer/dns-resolution.html).
+**Output** · [**▶ Watch it**](https://4lxn.github.io/motion-explainer/login-flow.html) (9 steps, 1:16, one 120 KB HTML file) · [scene source](examples/login-flow.scene.js)
+
+| Step | What happens |
+|---|---|
+| 2 | A terminal types the `curl` call |
+| 3 | The request packet passes **through** the API gateway (its outline fills like a progress ring) on its way to the auth service |
+| 4 | The camera zooms **inside** the auth service: rate limit → bcrypt → sign JWT |
+| 5 | The packet goes into the users database and comes back with the password hash |
+| 6 | A latency chart: bcrypt takes ~250 ms of the request, **on purpose** |
+| 7–8 | A signed token travels back; later requests only check its signature |
+
+**What Claude did in between**
+
+```text
+1. storyboarded 9 steps and checked the facts
+2. wrote the scene, built it, linted it in headless Chrome (overlaps, text that doesn't fit, hidden arrows)
+3. screenshotted every step and fixed what looked wrong
+4. opened the player
+```
+
+Another one, from a plain prompt with no graphics named and no edits: [how DNS resolution works](https://4lxn.github.io/motion-explainer/dns-resolution.html), built from a real `dig +trace`.
 
 ## Why it's different
 
@@ -40,8 +60,8 @@ That DNS explainer is real and unedited: [watch it](https://4lxn.github.io/motio
 | **Narrated, offline** | Local [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) voices in English and Spanish, with a voice picker in the player. Nothing leaves your machine. |
 
 <div align="center">
-<img src="docs/sheet.webp" alt="Contact sheet: all 8 steps of the GitHub Actions explainer" width="820">
-<br><sub>Every step of one explainer at a glance (<code>motion shot</code>). Step 5 zooms inside a runner.</sub>
+<img src="docs/sheet.webp" alt="Contact sheet: all 9 steps of the login explainer" width="820">
+<br><sub>Every step of the login explainer at a glance (<code>motion shot</code>): the sheet Claude reviews before showing you.</sub>
 </div>
 
 ## Install
