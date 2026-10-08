@@ -9,9 +9,9 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ### Changed
 - README rewritten: how a request goes, prompts to try, narration languages and voice setup, FAQ.
-- More natural Spanish narration: a pause after every clause, not only every sentence; Spanish read at
-  0.88× (Kokoro's Spanish voices ran ~40% faster than English); the phonemes Kokoro's Spanish voices were
-  trained on (diphthongs and "ch" as one symbol). The *¿Qué es Microsoft Access?* demo is re-narrated.
+- More natural Spanish narration: read at 0.88× (Kokoro's Spanish voices ran ~40% faster than English),
+  from the phonemes those voices were trained on (diphthongs and "ch" as one symbol). The
+  *¿Qué es Microsoft Access?* demo is re-narrated.
 - Narration drops the chorus, echo and treble "AI sheen"; it made the voices sound doubled and unnatural.
 
 ## [1.3.0] - 2026-10-07

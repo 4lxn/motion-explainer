@@ -33,10 +33,8 @@ ACCENT = {"es": "es-419", "es-419": "es-419", "es-mx": "es-419", "es-es": "es", 
 NATIVE = {"en": ["af_heart"], "es": ["ef_dora", "em_alex", "em_santa"]}
 SPANISH_WORDS = set("el la los las de del que y en un una es son por para con no se su sus al lo como más pero "
                     "este esta qué cómo cuando donde también muy hay ya".split())
-# Kokoro barely pauses at punctuation on its own, so each clause is spoken alone and joined with the
-# silence its closing mark asks for: PAUSE after a sentence, GAP after a clause.
+# Silence between sentences: Kokoro barely pauses at a full stop on its own.
 PAUSE = 0.35
-GAP = {",": 0.15, ";": 0.3, ":": 0.3}
 # Kokoro's Spanish voices run ~6.3 syllables/s against ~4.4 for af_heart, which reads as rushed and flat;
 # 0.88 brings them to ~5.5, the Spanish/English ratio people actually speak at.
 RATE = {"es": 0.88}
@@ -101,17 +99,6 @@ def js_block(sets):
     return ("Motion.voice = " + json.dumps(sets, indent=0) + ";\n").replace("</", "<\\/")
 
 
-def clauses(text):
-    """Sentences and clauses, each with its closing mark. One under 3 words rides with the next: Kokoro garbles a lone word."""
-    out = []
-    for piece in re.split(r"(?<=[.!?:;,])\s+", text):
-        if out and len(out[-1].split()) < 3:
-            out[-1] += " " + piece
-        else:
-            out.append(piece)
-    return out
-
-
 @functools.lru_cache(maxsize=None)
 def espeak(lang):
     from phonemizer.backend import EspeakBackend
@@ -127,16 +114,17 @@ def phonemes(text, lang):
 
 
 def speak(kokoro, text, voice, speed, lang):
-    """One clause at a time, joined with the silence its closing mark asks for."""
+    """One sentence at a time, joined with PAUSE seconds of silence. Commas stay inside one call: speaking
+    each clause alone resets its intonation and the narration comes out in pieces."""
     import numpy as np
     speed = max(0.5, speed * RATE.get(family(lang), 1))
     parts = []
-    for clause in clauses(text):
+    for sentence in re.split(r"(?<=[.!?:;])\s+", text):
         if family(lang) == "en":
-            samples, rate = kokoro.create(clause, voice=voice, speed=speed, lang=lang)
+            samples, rate = kokoro.create(sentence, voice=voice, speed=speed, lang=lang)
         else:
-            samples, rate = kokoro.create(phonemes(clause, lang), voice=voice, speed=speed, is_phonemes=True)
-        parts += [samples, np.zeros(int(rate * GAP.get(clause[-1], PAUSE)), samples.dtype)]
+            samples, rate = kokoro.create(phonemes(sentence, lang), voice=voice, speed=speed, is_phonemes=True)
+        parts += [samples, np.zeros(int(rate * PAUSE), samples.dtype)]
     return np.concatenate(parts[:-1]), rate
 
 

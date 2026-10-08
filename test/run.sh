@@ -79,14 +79,6 @@ for lang, text, v in (("es", es, "af_heart"), ("", en, "ef_dora")):
 else
   echo "FAIL voice language rules"; fail=1
 fi
-# Narration pauses after every clause; a clause under 3 words rides with the next.
-if PYTHONDONTWRITEBYTECODE=1 python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import voice
-got = voice.clauses("Las consultas responden preguntas: ¿qué pedidos pasan? Tablas, consultas, formularios, informes y macros.")
-assert got == ["Las consultas responden preguntas:", "¿qué pedidos pasan?", "Tablas, consultas, formularios,", "informes y macros."], got' "$ROOT/tools"; then
-  echo "ok   voice: clause pauses"
-else
-  echo "FAIL voice clause split"; fail=1
-fi
 printf 'Motion.voice = [{"dur": 1, "say": "</script>", "src": "data:,"}];\n' > "$tmp/stale.voice/voice.js"
 if out=$("$ROOT/bin/motion" build "$tmp/stale.scene.js" 2>&1); then
   echo "FAIL voice.js with </script was embedded"; fail=1
