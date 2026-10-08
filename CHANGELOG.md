@@ -4,6 +4,12 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+### Added
+- Narrated demos: *What is Microsoft Access?* (English) and *¿Qué es Microsoft Access?* (Spanish, three voices), with their scenes in `examples/`.
+
+### Changed
+- README rewritten: how a request goes, prompts to try, narration languages and voice setup, FAQ.
+
 ## [1.3.0] - 2026-10-07
 
 ### Added

@@ -4,105 +4,169 @@
 
 **Ask Claude to explain something. Get a motion-graphics animation you can pause, step through and zoom into.**
 
-A [Claude Code](https://claude.com/claude-code) skill. One prompt in, one self-contained HTML player out.
+A [Claude Code](https://claude.com/claude-code) skill. One prompt in, one self-contained HTML player out,<br>narrated in English or Spanish if you want.
 
-[**▶ Live demos**](https://4lxn.github.io/motion-explainer/) · [Quick setup](#quick-setup) · [Scene format](REFERENCE.md)
+[**▶ Live demos**](https://4lxn.github.io/motion-explainer/) · [**Install**](#install) · [Prompts to try](#prompts-to-try) · [Narration](#narration-english-and-spanish) · [Scene format](REFERENCE.md)
 
-[![test](https://github.com/4lxn/motion-explainer/actions/workflows/test.yml/badge.svg)](https://github.com/4lxn/motion-explainer/actions/workflows/test.yml) [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![test](https://github.com/4lxn/motion-explainer/actions/workflows/test.yml/badge.svg)](https://github.com/4lxn/motion-explainer/actions/workflows/test.yml)
+[![release](https://img.shields.io/github/v/release/4lxn/motion-explainer?color=0a84ff)](https://github.com/4lxn/motion-explainer/releases)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <img src="docs/demo.webp" alt="A motion-explainer animation: a terminal types git push, a pipeline lights up, a bar chart shrinks, a status page turns green" width="820">
 
 </div>
 
----
-
-## What you get
+## How it goes
 
 ```text
-you  > /motion-explainer how does a GitHub Actions job reach a self-hosted runner?
-claude > storyboards 8 steps, writes a scene, builds it, screenshots every step,
-         fixes what looks wrong, then opens the player.
+you    > /motion-explainer how does DNS turn example.com into an IP?
+
+claude > 1. storyboards 10 steps and checks the facts (here: a real dig +trace)
+         2. writes a scene, builds it, lints it in headless Chrome
+         3. screenshots every step, fixes what looks wrong
+         4. opens the player
 ```
 
-- **A real player, not a video.** Play/pause, step with `←` `→`, scrub, change speed.
-- **Zoom into anything.** Scroll or pinch to zoom, drag to pan, double-click a box to fly into it. Boxes can hold detail that only appears once you zoom in.
-- **One HTML file.** Engine, scene and (optional) narration inlined. No network, no CDN, strict CSP. Email it, attach it to a PR, open it offline.
-- **Self-checking.** Every build is linted in headless Chrome: overlapping boxes, text that doesn't fit, arrows through boxes, off-canvas elements. Claude also screenshots each step and looks at it before showing you.
-- **Optional local voice.** Narrate each step with the offline [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) TTS model. Nothing leaves your machine.
+That DNS explainer is real and unedited: [watch it](https://4lxn.github.io/motion-explainer/dns-resolution.html).
+
+## Why it's different
+
+|  |  |
+|---|---|
+| **A player, not a video** | Play, pause, step with `←` `→`, scrub, change speed. Viewers go at their own pace. |
+| **Zoom into anything** | Scroll or pinch to zoom, drag to pan, double-click a box to fly into it. Boxes can hold detail that only appears up close. |
+| **One HTML file** | Engine, scene and narration inlined. No network, no CDN, strict CSP. Email it, attach it to a PR, open it offline. |
+| **Checks its own work** | Every build is linted for overlaps, text that doesn't fit, arrows through boxes and off-canvas elements. Claude reviews a screenshot of every step before you see it. |
+| **Narrated, offline** | Local [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) voices in English and Spanish, with a voice picker in the player. Nothing leaves your machine. |
 
 <div align="center">
 <img src="docs/sheet.webp" alt="Contact sheet: all 8 steps of the GitHub Actions explainer" width="820">
 <br><sub>Every step of one explainer at a glance (<code>motion shot</code>). Step 5 zooms inside a runner.</sub>
 </div>
 
-## Quick setup
+## Install
 
-**Needs:** macOS or Linux, Google Chrome or Chromium, `bash`, `openssl`. Nothing to install from npm or pip.
+**Needs:** macOS or Linux, Google Chrome or Chromium, `bash`, `openssl`. Nothing from npm or pip.
 
-**Option A: plugin** (Claude Code updates it for you). Inside Claude Code:
+**Plugin** (Claude Code keeps it updated). In Claude Code:
 
 ```text
 /plugin marketplace add 4lxn/motion-explainer
 /plugin install motion-explainer@motion-explainer
 ```
 
-**Option B: git clone** (one command, update with `git pull`):
+**Or git clone** (update with `git pull`):
 
 ```sh
 git clone https://github.com/4lxn/motion-explainer ~/.claude/skills/motion-explainer
 ```
 
-Pick one; if both are installed, the plugin copy wins. Then, in Claude Code:
+Use one or the other; if both are installed, the plugin wins. Then ask:
 
 ```text
 /motion-explainer how TCP's three-way handshake works
 ```
 
-Or just say *"animate this architecture"* or *"explain it with an animation"*.
-
-Something off? `motion doctor` (plugin installs put `motion` on Claude's PATH) or `~/.claude/skills/motion-explainer/bin/motion doctor` (git clone) checks Chrome, `openssl` and an end-to-end build, and prints the fix for anything missing.
+Or just say *"animate this architecture"* or *"explícamelo con una animación"*.
 
 <details>
-<summary><b>Chrome in a non-standard place?</b></summary>
+<summary><b>Something not working?</b></summary>
 
-```sh
-export MOTION_CHROME="/path/to/chrome-or-chromium"
-```
+Run `motion doctor` (plugin installs put `motion` on Claude's PATH) or `~/.claude/skills/motion-explainer/bin/motion doctor` (git clone). It checks Chrome, `openssl` and an end-to-end build, and prints the fix for anything missing.
 
-On Windows, run it inside WSL with Chromium installed. The built HTML plays in any modern browser on any OS.
-
-Headless Chrome won't start in Ubuntu 24.04 CI or containers? Allow its sandbox: `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0` (this repo's CI does the same).
+- **Chrome somewhere unusual:** `export MOTION_CHROME="/path/to/chrome-or-chromium"`
+- **Windows:** run it inside WSL with Chromium installed. The built HTML plays in any browser on any OS.
+- **Ubuntu 24.04 CI or containers:** headless Chrome needs its sandbox allowed: `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0` (this repo's CI does the same).
 </details>
 
-## Use the CLI directly
+## Prompts to try
 
-The skill drives `bin/motion`. You can too:
+| You want | Ask |
+|---|---|
+| How a system works | *"/motion-explainer how a request reaches our API: load balancer, auth, cache, database"* |
+| An algorithm, step by step | *"animate quicksort on [7, 2, 9, 4, 1, 8]"* |
+| An idea that changes over time | *"show why retries without jitter overload a server after an outage"* |
+| What went wrong | *"walk through yesterday's outage as an animation, failure path first"* |
+| A product or tool | *"explain what Microsoft Access is and its main features, narrated in Spanish"* |
+| Onboarding | *"explain our deploy pipeline to a new engineer, with a step for every stage"* |
+
+Claude reads your code or docs first when the topic is your own system, and says "likely" in the narration for anything it inferred rather than checked.
+
+## Narration: English and Spanish
+
+Each step's narration can be spoken by a local text-to-speech model and embedded in the HTML. Every step waits for its voice to finish.
+
+| Narration language | Voices (picker in the player) | Pronunciation |
+|---|---|---|
+| English | Heart (`af_heart`) | American English |
+| Spanish | Dora, Alex, Santa (`ef_dora`, `em_alex`, `em_santa`) | Latin American (set `lang: 'es-es'` for Castilian) |
+
+Only native voices read each language: an English voice reading Spanish keeps its accent, so `motion voice` picks the right voices from the scene's `lang` (or detects the language) and refuses a mismatch.
+
+**Hear the same explainer in both languages:** [What is Microsoft Access?](https://4lxn.github.io/motion-explainer/what-is-access.html) · [¿Qué es Microsoft Access?](https://4lxn.github.io/motion-explainer/que-es-access.html)
+
+<details>
+<summary><b>Set up voice (once, about 270 MB, offline afterwards)</b></summary>
+
+Needs `node`, `ffmpeg` and Python 3.
 
 ```sh
-M=~/.claude/skills/motion-explainer/bin/motion   # on PATH as `motion` when installed as a plugin
-$M new   my-topic                # my-topic.scene.js from a starter (or: new my-topic architecture|algorithm|idea|story)
-$M build my-topic.scene.js       # inline everything into my-topic.html, then lint it
-$M shot  my-topic.html           # one PNG with every step's resting state
-$M shot  my-topic.html 4@1.5     # step 4, 1.5 s in: check motion mid-flight
-MOTION_SCALE=2 $M shot my-topic.html   # retina-sharp PNGs
-$M open  my-topic.html           # chromeless 1440x900 app window
-$M voice my-topic.scene.js       # optional: local narration, then build again
-$M doctor                        # check the setup
+APP=~/.claude/skills/motion-explainer   # plugin installs: APP=$(dirname "$(dirname "$(command -v motion)")")
+V=~/.cache/motion-voice; mkdir -p "$V"; python3 -m venv "$V/venv"
+"$V/venv/bin/pip" install -r "$APP/tools/voice-requirements.txt"
+for f in kokoro-v1.0.int8.onnx voices-v1.0.bin; do
+  curl -L -o "$V/$f" "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f"
+done
 ```
 
-Lint errors name the scene line and suggest the closest valid name:
+Every dependency is pinned, and the model files are checked against pinned SHA-256 hashes. Then ask Claude to "add narration", or run `motion voice my-topic.scene.js` and build again. More in [REFERENCE.md › Voice](REFERENCE.md#voice-motion-voice-optional).
+</details>
 
-```text
-error 'cache': unknown type 'bxo'. Did you mean 'box'?
-error step 2: unknown id 'dbb'. Did you mean 'db'?
-error js: Uncaught ReferenceError: lable is not defined (my-topic.scene.js:14)
+## Examples
+
+| Explainer | Shows | Live |
+|---|---|---|
+| [GitHub Actions runners](examples/gha-self-hosted-runner.scene.js) | architecture, packets along arrows, zooming inside a box | [open](https://4lxn.github.io/motion-explainer/gha-self-hosted-runner.html) |
+| [Binary search](examples/binary-search.scene.js) | an algorithm; the steps come from a real run of the code | [open](https://4lxn.github.io/motion-explainer/binary-search.html) |
+| [Retries with jitter](examples/retry-jitter.scene.js) | an idea over time, live charts | [open](https://4lxn.github.io/motion-explainer/retry-jitter.html) |
+| [From git push to production](examples/showcase.scene.js) | icons, terminal and browser mockups, kinetic type, `hud` theme | [open](https://4lxn.github.io/motion-explainer/showcase.html) |
+| [DNS resolution](examples/dns-resolution.scene.js) | **made by the skill from one prompt, unedited**, with real `dig +trace` data | [open](https://4lxn.github.io/motion-explainer/dns-resolution.html) |
+| [What is Microsoft Access?](examples/what-is-access.scene.js) | a product tour, **narrated** (English) | [open](https://4lxn.github.io/motion-explainer/what-is-access.html) |
+| [¿Qué es Microsoft Access?](examples/que-es-access.scene.js) | the same tour, **narrated in Spanish** with three voices | [abrir](https://4lxn.github.io/motion-explainer/que-es-access.html) |
+
+## Player keys
+
+| Key | Does | Key | Does |
+|---|---|---|---|
+| `Space` | play / pause | `S` | step mode: pause after each step |
+| `←` `→` | previous / next step | `[` `]` | slower / faster |
+| scroll, pinch | zoom | `T` | light / dark |
+| drag | pan | `V` | narration on / off |
+| double-click a box | zoom into it | `?` | all keys |
+
+Add `#4` to the URL to open at step 4.
+
+## Write scenes yourself
+
+The skill drives `bin/motion`, and you can too:
+
+```sh
+motion new   my-topic architecture   # start from a template: architecture | algorithm | idea | story
+motion build my-topic.scene.js       # inline everything into my-topic.html, then lint it
+motion shot  my-topic.html           # one PNG with every step (add 4 or 4@1.5 for one step, mid-motion)
+motion open  my-topic.html           # chromeless 1440x900 window
+motion voice my-topic.scene.js       # narrate, then build again
+motion doctor                        # check the setup
 ```
 
-A scene is a small JS file: declare the elements, then the steps that reveal and move them.
+(`motion` is on PATH with the plugin; with git clone it's `~/.claude/skills/motion-explainer/bin/motion`.)
+
+A scene is a small JS file: declare every element, then the steps that reveal and move them.
 
 ```js
 Motion.scene({
   title: 'Cache hit vs miss',
+  lang: 'en',
   elements: [
     { id: 'app',   type: 'box', x: 300,  y: 450, label: 'App' },
     { id: 'cache', type: 'box', x: 800,  y: 450, label: 'Cache', tone: 'accent' },
@@ -119,57 +183,54 @@ Motion.scene({
 });
 ```
 
-Elements: boxes, circles, text, arrows, zones, notes, code panels, icons, charts, terminal and browser mockups, kinetic titles, particles. Actions: `show`, `hide`, `set`, `flow`, `focus`, `camera`, `pulse` and more. Full format: [REFERENCE.md](REFERENCE.md).
+Errors name the scene line and suggest the closest valid name:
 
-## Player keys
+```text
+error 'cache': unknown type 'bxo'. Did you mean 'box'?
+error step 2: unknown id 'dbb'. Did you mean 'db'?
+error js: Uncaught ReferenceError: lable is not defined (my-topic.scene.js:14)
+```
 
-| Key | Does |
-|---|---|
-| `Space` | play / pause |
-| `←` `→` | previous / next step |
-| scroll, pinch | zoom |
-| drag | pan |
-| double-click a box | zoom into it |
-| `S` | step mode: pause after each step |
-| `[` `]` | slower / faster |
-| `T` | light / dark |
-| `V` | mute narration |
-| `?` | all keys |
+Elements: boxes, circles, text, arrows, zones, notes, code panels, icons, charts, terminal, browser and window mockups, kinetic titles, particles. Actions: `show`, `hide`, `set`, `move`, `flow`, `focus`, `camera`, `pulse`, `line` and more. The full format is in [REFERENCE.md](REFERENCE.md).
 
-`#4` at the end of the URL opens step 4.
+## FAQ
 
-## Examples
+<details>
+<summary><b>Does it need the internet?</b></summary>
+Only to install. Building, linting, narrating and playing all run locally, and the built page cannot load anything from the network.
+</details>
 
-| Scene | Shows | Live |
-|---|---|---|
-| [`gha-self-hosted-runner`](examples/gha-self-hosted-runner.scene.js) | architecture, flows, semantic zoom | [open](https://4lxn.github.io/motion-explainer/gha-self-hosted-runner.html) |
-| [`binary-search`](examples/binary-search.scene.js) | algorithm; steps generated from a real run | [open](https://4lxn.github.io/motion-explainer/binary-search.html) |
-| [`retry-jitter`](examples/retry-jitter.scene.js) | an idea over time, live charts | [open](https://4lxn.github.io/motion-explainer/retry-jitter.html) |
-| [`showcase`](examples/showcase.scene.js) | icons, mockups, kinetic type, `hud` theme | [open](https://4lxn.github.io/motion-explainer/showcase.html) |
-| [`dns-resolution`](examples/dns-resolution.scene.js) | **made by the skill from one prompt, unedited**: real `dig +trace` data, TTL caching | [open](https://4lxn.github.io/motion-explainer/dns-resolution.html) |
+<details>
+<summary><b>How do I share one?</b></summary>
+Send the <code>.html</code> file, or host it anywhere static (these demos are on GitHub Pages). Silent explainers are about 100 KB; narration adds roughly 1 MB per voice.
+</details>
+
+<details>
+<summary><b>Can I edit what Claude made?</b></summary>
+Yes. Edit the <code>.scene.js</code> (or ask Claude to) and build again. Don't edit the built <code>.html</code>.
+</details>
+
+<details>
+<summary><b>Why not a video, slides or a diagram?</b></summary>
+A video plays at one speed and can't be zoomed. Slides lose the movement. A static diagram shows the parts but not the order things happen in. A step player keeps all three: movement, pacing and detail on demand.
+</details>
 
 ## How it works
 
 ```text
-scene.js ──► bin/motion build ──► one .html (engine + scene inlined, hash-pinned CSP)
-                                    │
-                                    ├─► headless Chrome lint  (overlaps, fit, ids)
-                                    └─► motion shot           (PNG per step, Claude reviews it)
+scene.js ──► motion build ──► one .html (engine + scene + voice inlined, hash-pinned CSP)
+                                 │
+                                 ├─► headless Chrome lint  (overlaps, fit, unknown ids, JS errors)
+                                 └─► motion shot           (a PNG per step that Claude reviews)
 ```
 
-`engine/player.js` compiles the scene into tweens and paints SVG; `engine/player.css` styles the player; `bin/motion` is plain bash 3.2.
+`engine/player.js` compiles the scene into tweens and paints SVG. `bin/motion` is plain bash 3.2. `tools/voice.py` runs Kokoro locally.
 
-## Updating
+## Updating and contributing
 
-Plugin: `claude plugin update motion-explainer@motion-explainer`. Git clone: `git -C ~/.claude/skills/motion-explainer pull`. What changed: [CHANGELOG.md](CHANGELOG.md).
-
-## Development
-
-```sh
-test/run.sh   # lints every example, runs player-control, resource, voice, CLI and lint tests
-```
-
-CI runs it on Ubuntu and macOS. See [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Update:** `claude plugin update motion-explainer@motion-explainer`, or `git -C ~/.claude/skills/motion-explainer pull`. See [CHANGELOG.md](CHANGELOG.md).
+- **Test:** `test/run.sh` lints every example and runs the player, voice, CLI and lint tests. CI runs it on Ubuntu and macOS.
+- **Contribute:** issues and PRs welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
