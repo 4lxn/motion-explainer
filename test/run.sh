@@ -34,9 +34,11 @@ fi
 node "$ROOT/tools/narration.mjs" "$ROOT/examples/binary-search.scene.js" > "$tmp/narration.json"
 fake() {
   node -e 'const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-    const v = [{ dur: 30, say: s[0].say }, { dur: 1, say: s[1].say }].map(c => ({ ...c, src: "data:audio/wav;base64," }));
+    const set = (d1, d2) => [{ dur: d1, say: s.steps[0].say }, { dur: d2, say: s.steps[1].say }].map(c => ({ ...c, src: "data:audio/wav;base64," }));
+    const v = set(30, 1);
     if (process.argv[2] === "stale") v[1].say += " (edited)";
-    console.log("Motion.voice = " + JSON.stringify(v) + ";");' "$tmp/narration.json" "$1"
+    // fresh: two named voices (the picker); stale: the bare one-voice array older builds wrote.
+    console.log("Motion.voice = " + JSON.stringify(process.argv[2] === "stale" ? v : { af_heart: v, ef_dora: set(20, 1) }) + ";");' "$tmp/narration.json" "$1"
 }
 mkdir -p "$tmp/voice.voice" "$tmp/stale.voice"
 cat "$ROOT/examples/binary-search.scene.js" "$ROOT/test/voice.test.js" > "$tmp/voice.scene.js"
@@ -56,11 +58,26 @@ else
 fi
 
 if PYTHONDONTWRITEBYTECODE=1 python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import voice
-b = voice.js_block([{"dur": 1, "say": "a </script> b", "src": "data:,"}, None])
+b = voice.js_block({"af_heart": [{"dur": 1, "say": "a </script> b", "src": "data:,"}, None]})
 sys.exit(0 if "</" not in b and "<\\/script>" in b else 1)' "$ROOT/tools"; then
   echo "ok   voice.js escapes </"
 else
   echo "FAIL voice.js escaping"; fail=1
+fi
+# Native voices: Spanish narration gets Spanish voices with Latin American seseo; mismatches are refused.
+if PYTHONDONTWRITEBYTECODE=1 python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import voice
+es = ["Access es un programa de bases de datos que guarda todo en un archivo."]
+en = ["Access is a database program that keeps everything in one file."]
+assert voice.detect(es) == "es" and voice.detect(en) == "en"
+assert voice.pick("", es, "auto") == ({"ef_dora": "es-419", "em_alex": "es-419", "em_santa": "es-419"}, ["ef_dora", "em_alex", "em_santa"])
+assert voice.pick("", en, "") == ({"af_heart": "en-us"}, ["af_heart"])
+assert voice.pick("es-es", es, "em_alex")[0] == {"em_alex": "es"}
+for lang, text, v in (("es", es, "af_heart"), ("", en, "ef_dora")):
+    try: voice.pick(lang, text, v); sys.exit(1)
+    except SystemExit as e: assert "not a native" in str(e), e' "$ROOT/tools"; then
+  echo "ok   voice: native voices per language, mismatches refused"
+else
+  echo "FAIL voice language rules"; fail=1
 fi
 printf 'Motion.voice = [{"dur": 1, "say": "</script>", "src": "data:,"}];\n' > "$tmp/stale.voice/voice.js"
 if out=$("$ROOT/bin/motion" build "$tmp/stale.scene.js" 2>&1); then

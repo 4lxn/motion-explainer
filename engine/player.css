@@ -37,7 +37,7 @@ code{font:.9em var(--mono);background:var(--panel2);border:1px solid var(--line)
 
 /* control bar */
 #bar{flex:none;display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid var(--line);background:var(--bg)}
-#bar button,#intro button,#hud button{font:500 13px var(--sans);color:var(--fg);background:var(--panel2);border:1px solid var(--line2);border-radius:8px;height:34px;min-width:34px;padding:0 9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:background .15s,border-color .15s}
+#bar button,#bar select,#intro button,#hud button{font:500 13px var(--sans);color:var(--fg);background:var(--panel2);border:1px solid var(--line2);border-radius:8px;height:34px;min-width:34px;padding:0 9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;transition:background .15s,border-color .15s}
 #bar button:hover,#intro button:hover,#hud button:hover{border-color:var(--dimmer)}
 #bar button svg,#intro button svg{width:18px;height:18px;fill:currentColor}
 #bar button.primary,#intro button.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}

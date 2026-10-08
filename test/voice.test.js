@@ -1,5 +1,5 @@
 // Voice sync tests. test/run.sh appends this to a scene and writes a fake voice.js beside it (step 1:
-// 30 s, step 2: 1 s); audio elements are swapped for stubs, so no real media or autoplay is needed.
+// af_heart 30 s + 1 s, ef_dora 20 s + 1 s); audio elements are swapped for stubs, so no real media or autoplay is needed.
 document.addEventListener('DOMContentLoaded', () => {
   const out = document.getElementById('lint');
   const p = Motion.player, S = p.C.steps;
@@ -11,11 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const run = secs => { for (let i = 0; i < secs * 60; i++) p.tick(1 / 60); p.render(); };
   const stub = () => ({ paused: true, currentTime: 0, playbackRate: 1, play() { this.paused = false; return Promise.resolve(); },
     pause() { this.paused = true; } });
-  p.voice.forEach(c => { if (c) c.el = stub(); });
+  Object.values(p.voices).flat().forEach(c => { if (c) c.el = stub(); });
   const [a, b] = [p.voice[0].el, p.voice[1].el];
 
   ok('step 1 stretches to fit its 30 s clip', S[0].t1 >= S[0].t0 + 30.4 - 1e-6, S[0].t1 - S[0].t0);
-  ok('lint reports the clips', out.textContent.includes('voice 2 clips 31.0'), out.textContent.split('\n').find(l => l.startsWith('voice')));
+  ok('a narrated step ends right after its longest clip, no silent reading pause', Math.abs(S[1].t1 - Math.max(S[1].rest + .3, S[1].t0 + 1.4)) < 1e-6,
+    [S[1].t0, S[1].rest, S[1].t1]);
+  ok('lint reports the clips', out.textContent.includes('voice 2 clips 31.0 af_heart'), out.textContent.split('\n').find(l => l.startsWith('voice')));
   ok('voice button is shown', document.getElementById('bVoice')?.textContent === 'Voice on');
 
   p.play();
@@ -67,6 +69,19 @@ document.addEventListener('DOMContentLoaded', () => {
   p.seek(S[2].t0);
   run(.1);
   ok('a step without a clip leaves every clip paused', a.paused && b.paused);
+  p.pause();
+
+  const pick = document.getElementById('sVoice'), d = p.voices.ef_dora[0].el;
+  ok('picker lists every voice, first one playing', pick && [...pick.options].map(o => o.value).join() === 'af_heart,ef_dora' && p.voice === p.voices.af_heart);
+  ok('picker shows names, not ids', [...pick.options].map(o => o.textContent).join() === 'Heart,Dora', [...pick.options].map(o => o.textContent));
+  p.seek(0);
+  p.play();
+  run(.5);
+  p.setVoice('ef_dora');
+  run(.1);
+  ok('switching voice pauses the old clip and plays the new one at the playhead', a.paused && !d.paused && Math.abs(d.currentTime - p.t) < .35,
+    [a.paused, d.paused, d.currentTime, p.t]);
+  ok('the stop follows the picked voice', Math.abs(p.stopOf(0) - (S[0].t0 + 20)) < 1e-6, p.stopOf(0));
   p.pause();
 
   out.textContent += `test-pass ${pass}\n`;

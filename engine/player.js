@@ -358,7 +358,8 @@ function compile(spec) {
 
   const cur = {};
   for (const id in init) cur[id] = Object.assign({}, init[id]);
-  const tweens = [], fx = [], steps = [], voice = [];
+  const tweens = [], fx = [], steps = [];
+  const sets = voiceSets(), voice = sets && Object.fromEntries(Object.keys(sets).map(n => [n, []]));
   let si = 0;
   const tw = (id, p, b, t0, t1, k = 'num', e = 'inOut', amp) => {
     if (!EASE[e]) { say('warn', si + 1, `unknown ease '${e}'.${near(e, Object.keys(EASE)) || ` Use ${Object.keys(EASE).join(', ')}.`}`); e = 'inOut'; }
@@ -537,22 +538,29 @@ function compile(spec) {
     if (!st.title) say('warn', k + 1, 'step has no title');
     const words = (st.say || '').split(/\s+/).filter(Boolean).length;
     if (words > 60) say('warn', k + 1, `narration is ${words} words; split the step (aim for <= 40)`);
-    const clip = voiceClips()?.[k];
-    const fresh = clip && clip.say === (st.say || '') ? clip : null;
-    if (clip && !fresh) say('warn', k + 1, 'voice clip is out of date (narration changed); run motion voice again');
-    voice.push(fresh);
-    const spoken = fresh ? (REDUCE ? end : t0) + fresh.dur + .4 - end : 0;
-    const hold = Math.max(.3, spoken, st.hold ?? Math.min(9, Math.max(1.2, words / 3.2 + .8 - (end - t0) * .6)));
+    // Every voice must fit the step, so it holds for the longest fresh clip.
+    let dur = 0, stale = false;
+    for (const n in voice) {
+      const clip = sets[n][k], fresh = clip && clip.say === (st.say || '') ? clip : null;
+      if (clip && !fresh) stale = true;
+      voice[n].push(fresh);
+      if (fresh) dur = Math.max(dur, fresh.dur);
+    }
+    if (stale) say('warn', k + 1, 'voice clip is out of date (narration changed); run motion voice again');
+    const spoken = dur ? (REDUCE ? end : t0) + dur + .4 - end : 0;
+    // Narrated steps move on when the voice ends; the reading-time guess is only for silent ones.
+    const read = dur ? 0 : Math.min(9, Math.max(1.2, words / 3.2 + .8 - (end - t0) * .6));
+    const hold = Math.max(.3, spoken, st.hold ?? read);
     steps.push({ title: st.title || `Step ${k + 1}`, say: st.say || '', t0, rest: end, t1: end + hold });
     T = end + hold;
   });
   if (!steps.length) say('error', 0, 'scene has no steps');
-  const clips = voiceClips();
-  if (clips && clips.length !== steps.length) {
-    say('warn', 0, `voice has ${clips.length} clips for ${steps.length} steps; run motion voice again`);
+  for (const n in voice) {
+    if (sets[n].length !== steps.length) say('warn', 0, `voice has ${sets[n].length} clips for ${steps.length} steps; run motion voice again`);
+    if (!voice[n].some(Boolean)) delete voice[n];
   }
   return { W, H, els, by, init, tweens, fx, steps, total: T, issues, title: spec.title || 'Explainer',
-    voice: voice.some(Boolean) ? voice : null, backdrop: spec.backdrop || 'dots' };
+    voice: voice && Object.keys(voice).length ? voice : null, backdrop: spec.backdrop || 'dots' };
 }
 
 // Kinetic text takes as long as its length needs; everything else uses the show default.
@@ -563,9 +571,13 @@ function entryDur(fx, str) {
   return DUR.show;
 }
 
-// `motion voice` embeds one clip per step as Motion.voice.
-function voiceClips() {
-  return window.Motion && Array.isArray(window.Motion.voice) ? window.Motion.voice : null;
+// Kokoro ids read as names in the picker: ef_dora -> Dora, af_heart -> Heart.
+const voiceName = n => n.replace(/^[a-z][fm]_/, '').replace(/^./, c => c.toUpperCase());
+
+// `motion voice` embeds Motion.voice = { voiceName: [one clip per step] }; a bare array is one unnamed voice.
+function voiceSets() {
+  const v = window.Motion && window.Motion.voice;
+  return Array.isArray(v) ? { voice: v } : v && typeof v === 'object' ? v : null;
 }
 
 // A clip starts with its step; with reduced motion the playhead skips to rest, so it starts there.
@@ -1223,7 +1235,10 @@ class Player {
   constructor(C, spec, theme) {
     Object.assign(this, { C, spec, theme, home: [theme, spec.theme].find(v => v !== 'light' && THEMES[v]) || 'dark', t: 0, playing: false, until: Infinity, rate: 1, stepMode: false, k: -1, ucam: null, utgt: null, release: false, dirty: true });
     this.muted = false;
-    this.voice = C.voice?.map(c => c && { dur: c.dur, el: Object.assign(new Audio(c.src), { preload: 'auto' }) }) ?? null;
+    this.voices = C.voice && Object.fromEntries(Object.entries(C.voice).map(([n, set]) =>
+      [n, set.map(c => c && { dur: c.dur, el: Object.assign(new Audio(c.src), { preload: 'auto' }) })]));
+    // `voice` is the clip list being played; the picker swaps it.
+    this.voice = this.voices ? Object.values(this.voices)[0] : null;
     if (this.voice) {
       // requestAnimationFrame stops in a background tab; stop the voice with it.
       document.addEventListener('visibilitychange', () => {
@@ -1296,6 +1311,7 @@ class Player {
     <span id="time"></span>
     <button id="bRate" class="txt" title="Speed ([ and ])">1×</button>
     ${this.voice ? '<button id="bVoice" class="txt" title="Voice on / off (V)">Voice on</button>' : ''}
+    ${this.voices && Object.keys(this.voices).length > 1 ? `<select id="sVoice" title="Narrator voice">${Object.keys(this.voices).map(n => `<option value="${esc(n)}">${esc(voiceName(n))}</option>`).join('')}</select>` : ''}
     <button id="bStep" class="txt" title="Pause after every step (S)">Step mode</button>
     <span class="sep"></span>
     <button id="bZo" class="txt" title="Zoom out (−)">−</button>
@@ -1321,6 +1337,14 @@ class Player {
     if (!this.voice) return;
     this.muted = !this.muted;
     this.$('#bVoice').textContent = this.muted ? 'Voice off' : 'Voice on';
+    if (this.playing && this.until !== Infinity) {
+      this.until = this.stepMode ? this.nextStop() : Math.max(this.t, this.stopOf(this.idx(this.t)));
+    }
+  }
+  setVoice(name) {
+    if (!this.voices?.[name]) return;
+    this.voice.forEach(c => c?.el.pause());
+    this.voice = this.voices[name];
     if (this.playing && this.until !== Infinity) {
       this.until = this.stepMode ? this.nextStop() : Math.max(this.t, this.stopOf(this.idx(this.t)));
     }
@@ -1431,6 +1455,8 @@ class Player {
     $('#bPrev').onclick = () => this.prev();
     $('#bRate').onclick = () => { const i = RATES.indexOf(this.rate); this.rate = RATES[(i + 1) % RATES.length]; this.dirty = true; };
     if (this.voice) $('#bVoice').onclick = () => this.toggleVoice();
+    // Blur after a pick so the arrow keys step the explainer again instead of changing the voice.
+    if ($('#sVoice')) $('#sVoice').onchange = ev => { this.setVoice(ev.target.value); ev.target.blur(); };
     $('#bStep').onclick = () => this.toggleStep();
     $('#bZi').onclick = () => this.zoomBy(1.4);
     $('#bZo').onclick = () => this.zoomBy(1 / 1.4);
@@ -1639,8 +1665,10 @@ function scene(spec) {
       lint(`size ${C.W} ${C.H}`);
       lint(`steps ${C.steps.length}`);
       lint(`duration ${C.total.toFixed(1)}`);
-      const clips = (C.voice || []).filter(Boolean);
-      if (clips.length) lint(`voice ${clips.length} clips ${clips.reduce((n, c) => n + c.dur, 0).toFixed(1)}`);
+      for (const [n, set] of Object.entries(C.voice || {})) {
+        const clips = set.filter(Boolean);
+        lint(`voice ${clips.length} clips ${clips.reduce((t, c) => t + c.dur, 0).toFixed(1)}${n === 'voice' ? '' : ` ${n}`}`);
+      }
       for (const i of C.issues.slice().sort((a, b) => (a.lvl === 'error' ? 0 : 1) - (b.lvl === 'error' ? 0 : 1) || a.step - b.step)) {
         lint(`${i.lvl} ${i.step ? `step ${i.step}: ` : ''}${i.msg}`);
       }

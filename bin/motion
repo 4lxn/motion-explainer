@@ -30,8 +30,10 @@ usage:
   motion shot  <file.html> [step[@sec]]    PNG of every step's rest on one sheet; or one step full size,
                                            optionally <sec> seconds into it (3@1.5) to check motion
   motion open  <file.html> [WxH]           open in a chromeless app window (default 1440x900)
-  motion voice <name.scene.js> [voice] [speed]  narrate every step with the local Kokoro model into
-                                           <name>.voice/; the next build embeds it (default af_heart)
+  motion voice <name.scene.js> [voice,...] [speed]  narrate every step with the local Kokoro model into
+                                           <name>.voice/; the next build embeds it. Default: the native
+                                           voices for the scene's language (English af_heart; Spanish
+                                           ef_dora, em_alex, em_santa); several voices = a picker
   motion doctor                            check Chrome, openssl and the optional voice setup
   motion --version
 EOF
@@ -161,7 +163,7 @@ cmd_voice() {
   command -v node >/dev/null || die "voice needs node to read the scene"
   command -v ffmpeg >/dev/null || die "voice needs ffmpeg"
   set -o pipefail
-  node "$ROOT/tools/narration.mjs" "$src" | "$py" "$ROOT/tools/voice.py" "${src%.scene.js}.voice" "${2:-af_heart}" "${3:-1}"
+  node "$ROOT/tools/narration.mjs" "$src" | "$py" "$ROOT/tools/voice.py" "${src%.scene.js}.voice" "${2:-auto}" "${3:-1}"
 }
 
 cmd_shot() {

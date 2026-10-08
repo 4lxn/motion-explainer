@@ -4,6 +4,19 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-07
+
+### Added
+- Several voices per explainer: `motion voice <scene> a,b,c` renders each, and the player shows a voice picker.
+- Native voices per language: with no voice given, Spanish narration gets `ef_dora`, `em_alex` and `em_santa`;
+  English gets `af_heart`. Language comes from the scene's `lang` or is detected from the narration.
+- A short pause between sentences in narration.
+
+### Changed
+- Spanish narration uses Latin American pronunciation (`es-419`) by default; `lang: 'es-es'` for Castilian.
+- `motion voice` refuses a voice from another language (it would read with a foreign accent) and names the native ones.
+- Narrated steps move on when the voice ends, without an extra silent reading pause.
+
 ## [1.2.0] - 2026-10-07
 
 ### Added
@@ -53,7 +66,8 @@ Found by an independent verification pass.
 
 First public release: scene engine and player, `motion build / check / shot / open / voice`, four examples, tests.
 
-[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/4lxn/motion-explainer/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/4lxn/motion-explainer/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/4lxn/motion-explainer/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/4lxn/motion-explainer/compare/v1.0.0...v1.1.0

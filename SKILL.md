@@ -89,7 +89,10 @@ steps frame the right thing? Iterate until yes (usually 2–3 rounds).
 "$APP/bin/motion" build "$OUT/<slug>.scene.js"     # rebuild: the clips are embedded, steps stretch to fit
 ```
 
-Runs offline from `~/.cache/motion-voice` (setup in REFERENCE.md, Voice). Re-run `motion voice`
+Set `lang` in the scene when the narration is not English (`lang: 'es'` for Spanish): with no voice given,
+`motion voice` then uses that language's native voices (Spanish: Dora, Alex, Santa with Latin American
+pronunciation; English: Heart). Don't pass a voice from another language; it is refused because it sounds
+foreign. Runs offline from `~/.cache/motion-voice` (setup in REFERENCE.md, Voice). Re-run `motion voice`
 after any narration edit; the build warns about clips that are out of date. Never clone or imitate a
 real person's voice or a character's voice actor; use the built-in voices.
 

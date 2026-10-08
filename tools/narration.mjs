@@ -1,4 +1,4 @@
-// Prints each step's narration of a scene as JSON: [{ "k": 0, "title": "...", "say": "..." }, ...]
+// Prints a scene's narration as JSON: { "lang": "es", "steps": [{ "k": 0, "title": "...", "say": "..." }, ...] }
 import fs from 'node:fs';
 import vm from 'node:vm';
 
@@ -10,4 +10,4 @@ if (!spec) {
   console.error(`narration: ${file} has no Motion.scene({...}) call`);
   process.exit(1);
 }
-console.log(JSON.stringify((spec.steps || []).map((s, k) => ({ k, title: s.title || '', say: s.say || '' }))));
+console.log(JSON.stringify({ lang: spec.lang || '', steps: (spec.steps || []).map((s, k) => ({ k, title: s.title || '', say: s.say || '' })) }));

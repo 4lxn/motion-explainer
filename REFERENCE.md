@@ -13,6 +13,7 @@ Motion.scene({
   size: [1600, 900],             // canvas units (default); keep 16:9
   theme: 'dark',                 // 'light', or 'hud' (broadcast frame: corners, step slate, timecode); T toggles light
   backdrop: 'dots',              // 'grid', 'glow' (soft accent light behind dots) or 'none'
+  lang: 'es',                    // narration language: picks native voices and accent ('es' Latin American, 'es-es' Castilian, 'en')
   elements: [ /* everything that can ever appear, hidden until shown */ ],
   steps: [ { title, say, do: [ /* actions */ ], hold } ],
 });
@@ -142,13 +143,20 @@ Elements inside a `frame` count as contained, like inside a `zone`.
 Narrates each step's `say` text with a local text-to-speech model and embeds the audio in the HTML.
 Nothing is fetched at build or play time; the player's CSP stays `default-src 'none'`.
 
-- Output: `<name>.voice/step-N.m4a`, `voice.json` (model, voice, effect, clip lengths) and `voice.js`.
-  `motion build` inlines `voice.js` when it exists; each step holds until its clip ends.
+- Output: `<name>.voice/<voice>-step-N.m4a`, `voice.json` (model, voices, effect, clip lengths) and `voice.js`.
+  `motion build` inlines `voice.js` when it exists; each step holds until its longest clip ends.
 - Player: the current step's clip follows play, pause, seek and speed. **V** or the Voice button mutes.
-- Voice: `motion voice <scene> [voice] [speed]`, default `af_heart`. US: af_alloy af_aoede af_bella
-  af_heart af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky; UK: bf_alice bf_emma
-  bf_isabella bf_lily. A light chorus, room and treble lift (`EFFECT` in tools/voice.py) gives the
-  synthetic "AI" sheen.
+- Voice: `motion voice <scene> [voice[,voice...]] [speed]`. With no voice, the scene's language picks its
+  **native** voices: English `af_heart`; Spanish `ef_dora`, `em_alex`, `em_santa` (all three, as a picker).
+  Language comes from the scene's `lang`, or is detected from the narration. Spanish uses Latin American
+  pronunciation by default; `lang: 'es-es'` switches to Castilian.
+- Only native voices read a language (the first letter of a voice is its language: `a`/`b` English,
+  `e` Spanish). An English voice reading Spanish keeps its English accent, so `motion voice` refuses the mix
+  and names the native voices to use instead.
+- Several voices = a voice picker in the player (names shown as Dora, Alex, Santa…); the first plays by
+  default. Sentences get a short pause between them. Other English voices: af_alloy af_aoede af_bella
+  af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky; UK bf_alice bf_emma bf_isabella bf_lily.
+  A light chorus, room and treble lift (`EFFECT` in tools/voice.py) gives the synthetic "AI" sheen.
 - Setup, once (about 270 MB in `~/.cache/motion-voice`):
 
 ```sh
