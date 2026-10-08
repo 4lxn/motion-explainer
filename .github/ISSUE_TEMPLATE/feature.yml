@@ -1,0 +1,15 @@
+name: Feature request
+description: A new element, action, command or player control
+labels: [enhancement]
+body:
+  - type: textarea
+    id: explain
+    attributes:
+      label: What are you trying to explain or do?
+      description: The topic or workflow, and where the current format gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help

@@ -1,0 +1,28 @@
+name: Bug report
+description: Something builds, lints or plays wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: scene
+    attributes:
+      label: The smallest scene that shows it
+      description: Paste the .scene.js (trim it down if you can).
+      render: js
+  - type: textarea
+    id: output
+    attributes:
+      label: Output of `motion build` (or the failing command)
+      render: text
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `motion doctor`
+      render: text
+    validations:
+      required: true
