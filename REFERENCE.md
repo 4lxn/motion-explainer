@@ -154,9 +154,10 @@ Nothing is fetched at build or play time; the player's CSP stays `default-src 'n
   `e` Spanish). An English voice reading Spanish keeps its English accent, so `motion voice` refuses the mix
   and names the native voices to use instead.
 - Several voices = a voice picker in the player (names shown as Dora, Alex, Santa…); the first plays by
-  default. Sentences get a short pause between them. Other English voices: af_alloy af_aoede af_bella
-  af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky; UK bf_alice bf_emma bf_isabella bf_lily.
-  A light chorus, room and treble lift (`EFFECT` in tools/voice.py) gives the synthetic "AI" sheen.
+  default. Narration pauses after every sentence and clause (commas, colons, semicolons). Spanish is read
+  at 0.88× (Kokoro's Spanish voices rush otherwise) from the phonemes those voices were trained on.
+  Other English voices: af_alloy af_aoede af_bella af_jessica af_kore af_nicole af_nova af_river af_sarah
+  af_sky; UK bf_alice bf_emma bf_isabella bf_lily.
 - Setup, once (about 270 MB in `~/.cache/motion-voice`):
 
 ```sh

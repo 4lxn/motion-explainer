@@ -7,6 +7,7 @@ Nothing here touches the network: the model files must already be in ~/.cache/mo
 """
 
 import base64
+import functools
 import hashlib
 import json
 import os
@@ -32,16 +33,18 @@ ACCENT = {"es": "es-419", "es-419": "es-419", "es-mx": "es-419", "es-es": "es", 
 NATIVE = {"en": ["af_heart"], "es": ["ef_dora", "em_alex", "em_santa"]}
 SPANISH_WORDS = set("el la los las de del que y en un una es son por para con no se su sus al lo como más pero "
                     "este esta qué cómo cuando donde también muy hay ya".split())
-# Silence between sentences: Kokoro barely pauses at a full stop on its own.
+# Kokoro barely pauses at punctuation on its own, so each clause is spoken alone and joined with the
+# silence its closing mark asks for: PAUSE after a sentence, GAP after a clause.
 PAUSE = 0.35
-# An original voice with a synthetic sheen: doubled (chorus), a short room, a bright top.
-EFFECT = ",".join([
-    "highpass=f=90",
-    "chorus=0.7:0.9:40|57:0.22|0.18:0.25|0.3:1.9|1.3",
-    "aecho=0.85:0.6:24|48:0.18|0.10",
-    "treble=g=2.5:f=6000",
-    "loudnorm=I=-16:TP=-1.5",
-])
+GAP = {",": 0.15, ";": 0.3, ":": 0.3}
+# Kokoro's Spanish voices run ~6.3 syllables/s against ~4.4 for af_heart, which reads as rushed and flat;
+# 0.88 brings them to ~5.5, the Spanish/English ratio people actually speak at.
+RATE = {"es": 0.88}
+# Kokoro's non-English voices were trained on misaki's espeak phonemes, which fold tied pairs into one
+# symbol ("hay" ˈa^ɪ -> ˈI, "ch" t^ʃ -> ʧ). kokoro-onnx skips that step, so it is done here.
+TIED = sorted({"a^ɪ": "I", "a^ʊ": "W", "d^z": "ʣ", "d^ʒ": "ʤ", "e^ɪ": "A", "o^ʊ": "O", "ə^ʊ": "Q",
+               "s^s": "S", "t^s": "ʦ", "t^ʃ": "ʧ", "ɔ^ɪ": "Y"}.items())
+EFFECT = "highpass=f=90,loudnorm=I=-16:TP=-1.5"
 
 
 def checked(name):
@@ -98,13 +101,43 @@ def js_block(sets):
     return ("Motion.voice = " + json.dumps(sets, indent=0) + ";\n").replace("</", "<\\/")
 
 
+def clauses(text):
+    """Sentences and clauses, each with its closing mark. One under 3 words rides with the next: Kokoro garbles a lone word."""
+    out = []
+    for piece in re.split(r"(?<=[.!?:;,])\s+", text):
+        if out and len(out[-1].split()) < 3:
+            out[-1] += " " + piece
+        else:
+            out.append(piece)
+    return out
+
+
+@functools.lru_cache(maxsize=None)
+def espeak(lang):
+    from phonemizer.backend import EspeakBackend
+    return EspeakBackend(lang, preserve_punctuation=True, with_stress=True, tie="^", language_switch="remove-flags")
+
+
+def phonemes(text, lang):
+    """misaki's espeak G2P, the one Kokoro's non-English voices were trained on."""
+    ps = espeak(lang).phonemize([text])[0].strip()
+    for tied, one in TIED:
+        ps = ps.replace(tied, one)
+    return ps.replace("^", "").replace("-", "")
+
+
 def speak(kokoro, text, voice, speed, lang):
-    """One sentence at a time, joined with PAUSE seconds of silence."""
+    """One clause at a time, joined with the silence its closing mark asks for."""
     import numpy as np
-    parts = [kokoro.create(t, voice=voice, speed=speed, lang=lang) for t in re.split(r"(?<=[.!?:;])\s+", text)]
-    rate = parts[0][1]
-    gap = np.zeros(int(rate * PAUSE), dtype=parts[0][0].dtype)
-    return np.concatenate([x for samples, _ in parts for x in (samples, gap)][:-1]), rate
+    speed = max(0.5, speed * RATE.get(family(lang), 1))
+    parts = []
+    for clause in clauses(text):
+        if family(lang) == "en":
+            samples, rate = kokoro.create(clause, voice=voice, speed=speed, lang=lang)
+        else:
+            samples, rate = kokoro.create(phonemes(clause, lang), voice=voice, speed=speed, is_phonemes=True)
+        parts += [samples, np.zeros(int(rate * GAP.get(clause[-1], PAUSE)), samples.dtype)]
+    return np.concatenate(parts[:-1]), rate
 
 
 def main():
