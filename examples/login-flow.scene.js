@@ -21,12 +21,12 @@ Motion.scene({
     { id: 'db', type: 'box', x: 1360, y: 680, w: 280, h: 120, icon: 'database', label: 'Users DB', sub: 'email → password hash', shape: 'db' },
 
     // Inside the auth service: tiny on the canvas, readable once the camera zooms in.
-    { id: 'rl', type: 'box', x: 800, y: 660, w: 96, h: 40, icon: 'clock', label: 'Rate limit', size: 9, minZoom: 2.2, tone: 'teal' },
-    { id: 'bc', type: 'box', x: 900, y: 660, w: 96, h: 40, icon: 'cpu', label: 'bcrypt', size: 9, minZoom: 2.2, tone: 'warn' },
-    { id: 'ts', type: 'box', x: 1000, y: 660, w: 96, h: 40, icon: 'key', label: 'Sign JWT', size: 9, minZoom: 2.2, tone: 'ok' },
+    { id: 'rl', type: 'box', x: 790, y: 662, w: 84, h: 64, icon: 'clock', label: 'Rate limit', size: 9, minZoom: 2.2, tone: 'teal' },
+    { id: 'bc', type: 'box', x: 900, y: 662, w: 84, h: 64, icon: 'cpu', label: 'bcrypt', size: 9, minZoom: 2.2, tone: 'warn' },
+    { id: 'ts', type: 'box', x: 1010, y: 662, w: 84, h: 64, icon: 'key', label: 'Sign JWT', size: 9, minZoom: 2.2, tone: 'ok' },
     { id: 'i1', type: 'arrow', from: 'rl', to: 'bc', width: .8, gap: 3, minZoom: 2.2 },
     { id: 'i2', type: 'arrow', from: 'bc', to: 'ts', width: .8, gap: 3, minZoom: 2.2 },
-    { id: 'inote', type: 'text', x: 900, y: 712, text: '5 tries a minute · compare the hash · sign with the private key', size: 7, tone: 'dim', minZoom: 2.2 },
+    { id: 'inote', type: 'text', x: 900, y: 724, text: '5 tries a minute · compare the hash · sign with the private key', size: 7, tone: 'dim', minZoom: 2.2 },
 
     { id: 'tg', type: 'arrow', from: 'term', to: 'gw', label: 'HTTPS' },
     { id: 'ga', type: 'arrow', from: 'gw', to: 'auth', glow: true },

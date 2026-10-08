@@ -4,8 +4,21 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-08
+
 ### Added
+- Lint checks zoomed-in insides (`minZoom`): text must fit its box, an inside must not stick out of the element it
+  sits in, insides of the same element must not overlap, and arrows among them must not pass through boxes.
+- Lint warns when an arrow is drawn under the box it sits inside (and so is hidden), with the fix.
+- `layer` is documented: drawing order from 0 (back) to 3 (front).
 - `examples/login-flow`: a rich-visuals example from one prompt (hud theme, terminal, icons, zoom, chart, flow hand-offs), with a live demo and a README prompt row.
+
+### Changed
+- Zoomed-in arrows draw on the box layer, so they show over the box they sit in instead of hiding under it.
+- Example scenes must build with zero warnings; `test/run.sh` fails otherwise.
+
+### Fixed
+- A flow packet's glow was clipped to a square when zoomed in.
 
 ## [1.4.0] - 2026-10-08
 
@@ -79,7 +92,8 @@ Found by an independent verification pass.
 
 First public release: scene engine and player, `motion build / check / shot / open / voice`, four examples, tests.
 
-[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/4lxn/motion-explainer/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/4lxn/motion-explainer/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/4lxn/motion-explainer/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/4lxn/motion-explainer/compare/v1.1.1...v1.2.0

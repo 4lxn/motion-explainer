@@ -153,6 +153,8 @@ const widest = (lines, size, weight, mono) => Math.max(0, ...lines.map(l => text
 
 /* ---------- elements ---------- */
 const LAYER = { zone: 0, frame: 0, particles: 0, arrow: 1, box: 2, circle: 2, code: 2, icon: 2, chart: 2, note: 3, text: 3, title: 3 };
+// Arrows normally sit under boxes; zoomed-in arrows sit with the boxes, so they draw over the box they are inside.
+const layerOf = e => e.layer ?? (e.type === 'arrow' && e.minZoom ? 2 : LAYER[e.type]);
 const ENTRY = { box: 'pop', circle: 'pop', arrow: 'draw', text: 'up', note: 'up', zone: 'fade', code: 'fade', icon: 'pop',
   title: 'words', frame: 'fade', chart: 'grow', particles: 'fade' };
 const KINETIC = new Set(['type', 'words', 'scramble']);
@@ -662,46 +664,74 @@ function stateAt(C, t) {
 /* ---------- lint: layout problems at every step's resting state ---------- */
 function lintLayout(C) {
   const { els, by, W, H, steps } = C, seen = new Set();
-  const warn = (k, msg) => { if (!seen.has(msg)) { seen.add(msg); C.issues.push({ lvl: 'warn', step: k + 1, msg }); } };
   steps.forEach((st, k) => {
+    const warn = msg => { if (!seen.has(msg)) { seen.add(msg); C.issues.push({ lvl: 'warn', step: k + 1, msg }); } };
     const S = stateAt(C, st.rest);
-    const vis = els.filter(e => S[e.id].op > .5 && S[e.id].alpha > .05 && !e.minZoom);
-    const boxes = vis.filter(e => e.type !== 'arrow' && e.type !== 'particles').map(e => ({ e, r: bbox(e, S[e.id], S) }));
-    for (const { e, r } of boxes) {
-      if (r[0] < -2 || r[1] < -2 || r[2] > W + 2 || r[3] > H + 2) warn(k, `'${e.id}' sticks out of the ${W}x${H} canvas`);
-      fitText(e, S[e.id], msg => warn(k, msg));
-    }
+    const on = els.filter(e => S[e.id].op > .5 && S[e.id].alpha > .05);
+    const solid = e => e.type !== 'arrow' && e.type !== 'particles';
+    const box = e => ({ e, r: bbox(e, S[e.id], S) });
+    const vis = on.filter(e => !e.minZoom), boxes = vis.filter(solid).map(box);
+    for (const { e, r } of boxes) if (r[0] < -2 || r[1] < -2 || r[2] > W + 2 || r[3] > H + 2) warn(`'${e.id}' sticks out of the ${W}x${H} canvas`);
+    // Text has to fit its box at any zoom, so insides that only appear zoomed in are checked too.
+    for (const e of on.filter(solid)) fitText(e, S[e.id], warn);
     for (const { e: z, r: zr } of boxes) {
       if (z.type !== 'zone' || !S[z.id].label || (z.labelMaxZoom && z.labelMaxZoom < 1)) continue;
       const lab = String(S[z.id].label).toUpperCase(), lw = textW(lab, 13, 700) + .12 * 13 * lab.length;
       const lr = [zr[0] + 16, zr[1] + 9, zr[0] + 20 + lw, zr[1] + 35];
-      for (const { e: o, r } of boxes) if (o !== z && o.type !== 'zone' && inside(zr, r) && hits(lr, r)) warn(k, `label of zone '${z.id}' is covered by '${o.id}'`);
+      for (const { e: o, r } of boxes) if (o !== z && o.type !== 'zone' && inside(zr, r) && hits(lr, r)) warn(`label of zone '${z.id}' is covered by '${o.id}'`);
     }
-    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
-      const A = boxes[i], B = boxes[j];
-      if (!hits(A.r, B.r) || inside(A.r, B.r) || inside(B.r, A.r)) continue;
-      const za = CONTAINERS.has(A.e.type), zb = CONTAINERS.has(B.e.type), Z = za ? A : B;
-      warn(k, za || zb ? `'${(za ? B : A).e.id}' straddles the edge of ${Z.e.type} '${Z.e.id}'` : `'${A.e.id}' overlaps '${B.e.id}'`);
+    const order = new Map(els.map((e, i) => [e.id, i]));
+    const above = (a, b) => layerOf(a) > layerOf(b) || (layerOf(a) === layerOf(b) && order.get(a.id) > order.get(b.id));
+    lintScene(boxes, vis.filter(e => e.type === 'arrow'), S, by, warn, above);
+    // Zoomed-in insides: each belongs to the smallest canvas element around its center, must stay inside it,
+    // and is checked against the other insides of that element as if it were its own small canvas.
+    const groups = new Map();
+    for (const it of on.filter(e => e.minZoom && solid(e)).map(box)) {
+      const cx = (it.r[0] + it.r[2]) / 2, cy = (it.r[1] + it.r[3]) / 2;
+      const home = boxes.filter(b => b.e.type !== 'text' && b.r[0] < cx && cx < b.r[2] && b.r[1] < cy && cy < b.r[3])
+        .sort((a, b) => (a.r[2] - a.r[0]) * (a.r[3] - a.r[1]) - (b.r[2] - b.r[0]) * (b.r[3] - b.r[1]))[0];
+      if (!home) continue;
+      if (!inside([home.r[0] + 2, home.r[1] + 2, home.r[2] - 2, home.r[3] - 2], it.r)) warn(`'${it.e.id}' sticks out of '${home.e.id}', the element it sits in`);
+      if (!groups.has(home.e.id)) groups.set(home.e.id, []);
+      groups.get(home.e.id).push(it);
     }
-    for (const e of vis.filter(x => x.type === 'arrow')) {
-      for (const end of [e.from, e.to]) if (!Array.isArray(end) && S[end] && S[end].op < .5) warn(k, `arrow '${e.id}' is visible but its end '${end}' is hidden`);
-      const g = edgeGeom(e, S, by);
-      if (!g) continue;
-      const ends = [e.from, e.to].filter(x => !Array.isArray(x) && by[x]).map(x => bbox(by[x], S[x], S));
-      const lr = S[e.id].label ? labelRect(e, g, S[e.id].label) : null;
-      for (const { e: o, r } of boxes) {
-        if (o.type === 'zone' || o.id === e.from || o.id === e.to) continue;
-        if (ends.some(er => inside(r, er) || inside(er, r))) continue;
-        if (e.head === false) { if (lr && hits(lr, r)) warn(k, `label of line '${e.id}' collides with '${o.id}'`); continue; }
-        const sh = [r[0] + 6, r[1] + 6, r[2] - 6, r[3] - 6];
-        for (let u = .08; u < .93; u += .06) {
-          const p = bez(g, u);
-          if (p.x > sh[0] && p.x < sh[2] && p.y > sh[1] && p.y < sh[3]) { warn(k, `arrow '${e.id}' passes through '${o.id}'`); break; }
-        }
-        if (lr && hits(lr, r)) warn(k, `label of arrow '${e.id}' collides with '${o.id}'`);
-      }
+    for (const [hid, items] of groups) {
+      const ids = new Set(items.map(i => i.e.id)), home = by[hid];
+      const arrows = on.filter(e => e.minZoom && e.type === 'arrow' && [e.from, e.to].some(x => ids.has(x)));
+      for (const a of arrows) if (!CONTAINERS.has(home.type) && !above(a, home)) warn(hidden(a, home));
+      lintScene(items, arrows, S, by, warn, above);
     }
   });
+}
+
+const hidden = (a, o) => `arrow '${a.id}' is drawn under '${o.id}', which hides it; declare it after '${o.id}' or give it layer: ${layerOf(o) + 1}`;
+// Overlaps, elements straddling a container, and arrows through or under boxes, for one set of things seen together.
+function lintScene(boxes, arrows, S, by, warn, above) {
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const A = boxes[i], B = boxes[j];
+    if (!hits(A.r, B.r) || inside(A.r, B.r) || inside(B.r, A.r)) continue;
+    const za = CONTAINERS.has(A.e.type), zb = CONTAINERS.has(B.e.type), Z = za ? A : B;
+    warn(za || zb ? `'${(za ? B : A).e.id}' straddles the edge of ${Z.e.type} '${Z.e.id}'` : `'${A.e.id}' overlaps '${B.e.id}'`);
+  }
+  for (const e of arrows) {
+    for (const end of [e.from, e.to]) if (!Array.isArray(end) && S[end] && S[end].op < .5) warn(`arrow '${e.id}' is visible but its end '${end}' is hidden`);
+    const g = edgeGeom(e, S, by);
+    if (!g) continue;
+    const ends = [e.from, e.to].filter(x => !Array.isArray(x) && by[x]).map(x => bbox(by[x], S[x], S));
+    const lr = S[e.id].label ? labelRect(e, g, S[e.id].label) : null;
+    for (const { e: o, r } of boxes) {
+      if (o.type === 'zone' || o.id === e.from || o.id === e.to) continue;
+      if (ends.length === 2 && ends.every(er => inside(r, er)) && !CONTAINERS.has(o.type) && !above(e, o)) { warn(hidden(e, o)); continue; }
+      if (ends.some(er => inside(r, er) || inside(er, r))) continue;
+      if (e.head === false) { if (lr && hits(lr, r)) warn(`label of line '${e.id}' collides with '${o.id}'`); continue; }
+      const m = Math.min(6, (r[2] - r[0]) / 4, (r[3] - r[1]) / 4), sh = [r[0] + m, r[1] + m, r[2] - m, r[3] - m];
+      for (let u = .08; u < .93; u += .06) {
+        const p = bez(g, u);
+        if (p.x > sh[0] && p.x < sh[2] && p.y > sh[1] && p.y < sh[3]) { warn(`arrow '${e.id}' passes through '${o.id}'`); break; }
+      }
+      if (lr && hits(lr, r)) warn(`label of arrow '${e.id}' collides with '${o.id}'`);
+    }
+  }
 }
 
 function fitText(e, s, warn) {
@@ -821,6 +851,13 @@ class Stage {
     const fm = mk('feMerge', {}, f);
     mk('feMergeNode', { in: 'b' }, fm);
     mk('feMergeNode', { in: 'SourceGraphic' }, fm);
+    // Flow packets are tiny next to the blur, so their glow needs a much larger filter region or it clips to a square.
+    const fd = mk('filter', { id: `glowd${uid}`, x: '-500%', y: '-500%', width: '1100%', height: '1100%' }, defs);
+    mk('feGaussianBlur', { stdDeviation: 5, result: 'b' }, fd);
+    const fdm = mk('feMerge', {}, fd);
+    mk('feMergeNode', { in: 'b' }, fdm);
+    mk('feMergeNode', { in: 'SourceGraphic' }, fdm);
+    this.glowDot = `url(#glowd${uid})`;
     const bd = C.backdrop, big = { x: -2 * W, y: -2 * H, width: 5 * W, height: 5 * H };
     if (bd === 'glow') {
       const rg = mk('radialGradient', { id: `bg${uid}`, cx: W / 2, cy: H / 2, r: Math.max(W, H) * .7, gradientUnits: 'userSpaceOnUse' }, defs);
@@ -841,7 +878,7 @@ class Stage {
     this.gfx = mk('g', { 'pointer-events': 'none' }, svg);
     this.glow = `url(#glow${uid})`;
     this.nodes = {};
-    for (const e of C.els) this.nodes[e.id] = this.make(e, mk('g', { 'data-id': e.id, display: 'none' }, this.layers[e.layer ?? LAYER[e.type]]));
+    for (const e of C.els) this.nodes[e.id] = this.make(e, mk('g', { 'data-id': e.id, display: 'none' }, this.layers[layerOf(e)]));
   }
   make(e, g) {
     const th = this.th, n = { g };
@@ -1272,7 +1309,7 @@ class Stage {
     if (progress > .002) mk('path', { d, fill: 'none', stroke: col, 'stroke-width': 2.5, pathLength: 1, 'stroke-dasharray': dash, 'stroke-linecap': 'round', opacity: .95 }, this.gfx);
   }
   packet(pt, k0, col, scale, op) {
-    mk('circle', { cx: pt.x, cy: pt.y, r: 9 * k0 * scale, fill: col, opacity: op, filter: this.glow }, this.gfx);
+    mk('circle', { cx: pt.x, cy: pt.y, r: 9 * k0 * scale, fill: col, opacity: op, filter: this.glowDot }, this.gfx);
     mk('circle', { cx: pt.x, cy: pt.y, r: 3.6 * k0 * scale, fill: '#fff', opacity: op }, this.gfx);
   }
   flow(f, t, p, S, col) {

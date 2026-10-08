@@ -11,8 +11,9 @@ done
 
 for s in "$ROOT"/examples/*.scene.js; do
   name=$(basename "$s" .scene.js)
-  if "$ROOT/bin/motion" build "$s" "$tmp/$name.html" > "$tmp/$name.log" 2>&1; then
-    echo "ok   lint $name ($(grep -c '^warn' "$tmp/$name.log" || true) warnings)"
+  # Examples are the gallery: they must build with no warnings at all.
+  if "$ROOT/bin/motion" build "$s" "$tmp/$name.html" > "$tmp/$name.log" 2>&1 && ! grep -q '^warn' "$tmp/$name.log"; then
+    echo "ok   lint $name (0 warnings)"
   else
     echo "FAIL lint $name"; sed 's/^/     /' "$tmp/$name.log"; fail=1
   fi
@@ -99,6 +100,15 @@ if printf '%s\n' "$out" | grep -q '^test-pass 7' && ! printf '%s\n' "$out" | gre
   echo "ok   flow packets hand off through components (7 checks)"
 else
   echo "FAIL flow hand-off"; printf '%s\n' "$out" | grep -E '^(error|test-pass)' | sed 's/^/     /'; fail=1
+fi
+
+out=$("$ROOT/bin/motion" build "$ROOT/test/zoom-lint.scene.js" "$tmp/zoom-lint.html" 2>&1 || true)
+want="text in 'tall' needs|'out' sticks out of 'svc'|'p' overlaps 'q'|arrow 'under' is drawn under 'svc'"
+missing=$(printf '%s\n' "$want" | tr '|' '\n' | while read -r w; do printf '%s\n' "$out" | grep -q "$w" || echo "$w"; done)
+if [ -z "$missing" ] && ! printf '%s\n' "$out" | grep -qE "'(f1|f2|fa|fine)'"; then
+  echo "ok   lint checks zoomed-in insides (fit, containment, overlap, hidden arrows)"
+else
+  echo "FAIL zoom-in lint"; printf '%s\n' "missing: $missing" "$out" | sed 's/^/     /'; fail=1
 fi
 
 # CLI: help is not an error, unknown commands are named, sizes are strict.

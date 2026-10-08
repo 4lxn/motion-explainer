@@ -33,6 +33,8 @@ Common fields: `id` (required, unique, not `all`/`canvas`), `type`, `x`, `y`,
 `tone`, `on: true` (visible from t=0), `alpha` (opacity multiplier),
 `minZoom` / `maxZoom` (semantic zoom, below), `fx` (default entry effect),
 `glow: true` (soft glow on a box, arrow, icon or chart).
+`layer`: drawing order, 0 (back: zones, frames) to 3 (front: notes, text); arrows default to 1, under boxes (2),
+except zoomed-in (`minZoom`) arrows, which draw with the boxes so they show over the box they sit in.
 
 | type | fields | notes |
 |---|---|---|
@@ -131,8 +133,10 @@ Warnings (fix, or say why they are fine): overlaps, elements off the canvas,
 arrows crossing a box, arrow labels hitting a box, text that does not fit,
 visible arrows with hidden ends, zone labels covered by their contents,
 frame lines that don't fit, narration over 60 words, unknown themes, backdrops,
-chart or frame kinds and particle modes. Skipped by the layout checks: elements with `minZoom`,
-elements with `alpha` ≤ .05 (e.g. empty bars), particles, and crossings of `head: false` lines.
+chart or frame kinds and particle modes. Elements with `minZoom` are checked as the insides of the
+element around them: their text must fit, they must stay inside it, must not overlap each other, and their arrows
+must not hide under it. Skipped by the layout checks: elements with `alpha` ≤ .05 (e.g. empty bars), particles,
+and crossings of `head: false` lines.
 Elements inside a `frame` count as contained, like inside a `zone`.
 
 `motion shot file.html 3@1.5` captures step 3 at 1.5 s in, to check motion
