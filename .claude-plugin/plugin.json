@@ -1,6 +1,6 @@
 {
   "name": "motion-explainer",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Explain anything as a motion-graphics animation you can pause, step through and zoom into. One self-contained HTML file.",
   "author": { "name": "Alan Cervantes", "url": "https://github.com/4lxn" },
   "homepage": "https://4lxn.github.io/motion-explainer/",

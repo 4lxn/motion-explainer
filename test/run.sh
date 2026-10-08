@@ -94,6 +94,13 @@ if printf '%s\n' "$out" | grep -q '^test-pass' && printf '%s\n' "$out" | grep -q
 else
   echo "FAIL note titles"; printf '%s\n' "$out" | sed 's/^/     /'; fail=1
 fi
+out=$("$ROOT/bin/motion" build "$ROOT/test/flow.scene.js" "$tmp/flow.html" 2>&1 || true)
+if printf '%s\n' "$out" | grep -q '^test-pass 7' && ! printf '%s\n' "$out" | grep -q '^error'; then
+  echo "ok   flow packets hand off through components (7 checks)"
+else
+  echo "FAIL flow hand-off"; printf '%s\n' "$out" | grep -E '^(error|test-pass)' | sed 's/^/     /'; fail=1
+fi
+
 # CLI: help is not an error, unknown commands are named, sizes are strict.
 M="$ROOT/bin/motion"
 if "$M" --help | grep -q '^usage:' && "$M" | grep -q '^usage:'; then echo "ok   help on stdout, exit 0"; else echo "FAIL help"; fail=1; fi

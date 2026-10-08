@@ -94,6 +94,7 @@ const EASE = {
 const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
 const smooth = (a, b, v) => { const p = clamp01((v - a) / (b - a)); return p * p * (3 - 2 * p); };
 const lerp = (a, b, p) => a + (b - a) * p;
+const TAU = Math.PI * 2;
 const list = v => v == null || v === false ? [] : Array.isArray(v) ? v : [v];
 // ' Did you mean 'x'?' for a typo within two edits of a known name, else ''.
 function near(word, names) {
@@ -264,6 +265,61 @@ function endPt(ref, S) {
   if (Array.isArray(ref)) return { x: ref[0], y: ref[1] };
   const s = S[ref];
   return s ? { x: s.x, y: s.y + (s.oy || 0) } : { x: 0, y: 0 };
+}
+
+/* ---------- flow packets: their route, and hand-offs through components ---------- */
+const FLOW_TAIL = .45;  // seconds a landing ripple and glow last after a flow ends
+const center = (e, s, S) => { const r = bbox(e, s, S); return { x: (r[0] + r[2]) / 2, y: (r[1] + r[3]) / 2 }; };
+const lerpPt = (a, b, k) => ({ x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k) });
+// [where the packet starts, where it lands]: element ids, or arrays for free points.
+function flowEnds(f, by) {
+  const a = by[f.edges[0]], z = by[f.edges[f.edges.length - 1]];
+  return f.reverse ? [z.to, a.from] : [a.from, z.to];
+}
+// The path a packet rides: each arrow, plus a short pass through every component two arrows share,
+// so a multi-arrow flow goes in and out of the box instead of jumping across it.
+function flowRoute(f, S, by) {
+  const E = f.reverse ? f.edges.slice().reverse() : f.edges, segs = [];
+  for (let i = 0; i < E.length; i++) {
+    const e = by[E[i]], ge = edgeGeom(e, S, by);
+    if (!ge) return null;
+    const G = f.reverse ? { p0: ge.p2, c: ge.c, p2: ge.p0 } : ge;
+    const via = i && (f.reverse ? by[E[i - 1]].from : by[E[i - 1]].to), start = f.reverse ? e.to : e.from;
+    if (i && via === start && by[start] && S[start]) {
+      const a = segs[segs.length - 1].end, b = G.p0, c = center(by[start], S[start], S);
+      const cc = { x: 2 * c.x - (a.x + b.x) / 2, y: 2 * c.y - (a.y + b.y) / 2 };  // the curve passes through the center
+      segs.push({ w: .5, node: start, from: a, at: k => bez({ p0: a, c: cc, p2: b }, k) });
+    }
+    segs.push({ w: 1, at: k => bez(G, k), end: G.p2 });
+  }
+  return segs;
+}
+// A point on the route at u in 0..1; inside a component it carries the node, its progress k and how far in it is.
+function routeAt(segs, u) {
+  let x = clamp01(u) * segs.reduce((n, sg) => n + sg.w, 0);
+  for (let i = 0; i < segs.length; i++) {
+    const sg = segs[i];
+    if (x <= sg.w + 1e-9 || i === segs.length - 1) {
+      const k = clamp01(x / sg.w), pt = sg.at(k);
+      return sg.node ? { x: pt.x, y: pt.y, node: sg.node, from: sg.from, k, inside: Math.min(1, k * 4, (1 - k) * 4) } : { x: pt.x, y: pt.y, inside: 0 };
+    }
+    x -= sg.w;
+  }
+}
+// Two flows in a row through the same component share one packet: it waits inside between them.
+function linkFlows(fx, by) {
+  const flows = fx.filter(f => f.k === 'flow' && f.count === 1).sort((a, b) => a.t0 - b.t0);
+  for (const b of flows) {
+    const start = flowEnds(b, by)[0];
+    if (typeof start !== 'string' || !by[start]) continue;
+    const a = flows.filter(f => f !== b && !f.next && f.t0 < b.t0 && flowEnds(f, by)[1] === start && f.t1 <= b.t0 + .05 && b.t0 - f.t1 <= 2.5).pop();
+    if (!a) continue;
+    // Short gaps borrow a little time from both flows, so the pass through the component never snaps.
+    const pad = Math.max(0, (.5 - (b.t0 - a.t1)) / 2);
+    Object.assign(a, { next: b, cut: a.t1 - pad });
+    Object.assign(b, { prev: a, cut: b.t0 + pad });
+    fx.push({ k: 'hold', node: start, a, b, t0: a.t1 - pad, t1: b.t0 + pad, tone: a.tone });
+  }
 }
 
 /* ---------- arrows: quadratic curves clipped to their end shapes ---------- */
@@ -559,6 +615,7 @@ function compile(spec) {
     if (sets[n].length !== steps.length) say('warn', 0, `voice has ${sets[n].length} clips for ${steps.length} steps; run motion voice again`);
     if (!voice[n].some(Boolean)) delete voice[n];
   }
+  linkFlows(fx, by);
   return { W, H, els, by, init, tweens, fx, steps, total: T, issues, title: spec.title || 'Explainer',
     voice: voice && Object.keys(voice).length ? voice : null, backdrop: spec.backdrop || 'dots' };
 }
@@ -1180,42 +1237,97 @@ class Stage {
     g.textContent = '';
     if (REDUCE) return;
     for (const f of C.fx) {
-      if (t < f.t0 || t > f.t1) continue;
-      const p = (t - f.t0) / (f.t1 - f.t0), col = css(rgb(th, f.tone));
+      const tail = f.k === 'flow' && !f.next ? FLOW_TAIL : 0;
+      if (t < f.t0 || t > f.t1 + tail) continue;
+      const p = clamp01((t - f.t0) / (f.t1 - f.t0)), col = css(rgb(th, f.tone));
       if (f.k === 'pulse') {
         const e = C.by[f.id], s = S[f.id], k = EASE.out(p);
         if (!e || !s) continue;
         const r = bbox(e, s, S), grow = 6 + 28 * k, a = (1 - p) * .9;
         if (e.type === 'circle') mk('circle', { cx: s.x, cy: s.y + s.oy, r: s.r + grow, fill: 'none', stroke: col, 'stroke-width': 3 * (1 - p) + 1, opacity: a }, g);
         else mk('path', { d: roundRect(r[0] - grow, r[1] - grow, r[2] - r[0] + 2 * grow, r[3] - r[1] + 2 * grow, 14 + grow), fill: 'none', stroke: col, 'stroke-width': 3 * (1 - p) + 1, opacity: a }, g);
-        continue;
+      } else if (f.k === 'hold') this.hold(f, t, S, col);
+      else this.flow(f, t, p, S, col);
+    }
+  }
+  // The outline of a component a packet is passing through: a soft glow, and a ring that fills with progress,
+  // clockwise from where the packet came in.
+  outline(id, S, col, progress, glow, from) {
+    const e = this.C.by[id], s = S[id], pad = 5;
+    if (!e || !s || s.op < .05) return;
+    const r = bbox(e, s, S), cy = s.y + (s.oy || 0);
+    let f0 = 0;  // where `from` sits along the outline, 0..1 from its start (top-left corner; leftmost point of a circle)
+    if (from && e.type === 'circle') f0 = (((Math.atan2(from.y - cy, from.x - s.x) - Math.PI) % TAU) + TAU) % TAU / TAU;
+    else if (from) {
+      const w = r[2] - r[0], h = r[3] - r[1], P = 2 * (w + h), x = clamp01((from.x - r[0]) / w) * w, y = clamp01((from.y - r[1]) / h) * h;
+      const side = [y, w - x, h - y, x].indexOf(Math.min(y, w - x, h - y, x));
+      f0 = [x, w + y, w + h + (w - x), 2 * w + h + (h - y)][side] / P;
+    }
+    const k = Math.min(progress, 1), over = f0 + k - 1;
+    const dash = over > 0 ? `${over.toFixed(4)} ${(f0 - over).toFixed(4)} ${(1 - f0).toFixed(4)} 1` : `0 ${f0.toFixed(4)} ${k.toFixed(4)} 1`;
+    const d = e.type === 'circle'
+      ? `M${s.x - s.r - pad},${cy}a${s.r + pad},${s.r + pad} 0 1 1 ${2 * (s.r + pad)},0a${s.r + pad},${s.r + pad} 0 1 1 ${-2 * (s.r + pad)},0`
+      : roundRect(r[0] - pad, r[1] - pad, r[2] - r[0] + 2 * pad, r[3] - r[1] + 2 * pad, (e.shape === 'pill' ? (r[3] - r[1]) / 2 : e.radius ?? 14) + pad);
+    if (glow > .01) mk('path', { d, fill: 'none', stroke: col, 'stroke-width': 7, opacity: glow.toFixed(3), filter: this.glow }, this.gfx);
+    if (progress > .002) mk('path', { d, fill: 'none', stroke: col, 'stroke-width': 2.5, pathLength: 1, 'stroke-dasharray': dash, 'stroke-linecap': 'round', opacity: .95 }, this.gfx);
+  }
+  packet(pt, k0, col, scale, op) {
+    mk('circle', { cx: pt.x, cy: pt.y, r: 9 * k0 * scale, fill: col, opacity: op, filter: this.glow }, this.gfx);
+    mk('circle', { cx: pt.x, cy: pt.y, r: 3.6 * k0 * scale, fill: '#fff', opacity: op }, this.gfx);
+  }
+  flow(f, t, p, S, col) {
+    const g = this.gfx, th = this.th, C = this.C, segs = flowRoute(f, S, C.by);
+    if (!segs) return;
+    const e0 = C.by[f.edges[0]], k0 = e0.width / 2.5, ls = 13 * (e0.labelSize || 14) / 14;
+    if (t > f.t1) {
+      // Landed: a ripple where it went in, and the component glows, then both fade.
+      const q = (t - f.t1) / FLOW_TAIL, end = routeAt(segs, 1), node = flowEnds(f, C.by)[1];
+      mk('circle', { cx: end.x, cy: end.y, r: (5 + 18 * EASE.out(q)) * k0, fill: 'none', stroke: col, 'stroke-width': 2, opacity: (.8 * (1 - q)).toFixed(3) }, g);
+      if (typeof node === 'string') this.outline(node, S, col, 0, .5 * (1 - q));
+      return;
+    }
+    // While handed to a hold, that hold draws the packet.
+    if ((f.prev && t < f.cut) || (f.next && t > f.cut)) return;
+    const sp = Math.min(.22, .9 / f.count);
+    for (let j = 0; j < f.count; j++) {
+      const pj = p * (1 + sp * (f.count - 1)) - j * sp;
+      if (pj < 0 || pj > 1) continue;
+      const pt = routeAt(segs, pj);
+      // It pops out of where it starts and shrinks into where it lands, unless a hold carries it on.
+      const born = f.prev ? 1 : .35 + .65 * EASE.out(clamp01(pj / .1));
+      const land = f.next ? 1 : 1 - .7 * EASE.in(clamp01((pj - .86) / .14));
+      const scale = born * land * (1 - .4 * pt.inside);
+      const op = Math.min(1, f.prev ? 1 : pj * 30, f.next ? 1 : (1 - pj) * 40) * (1 - .45 * pt.inside);
+      if (pt.node) this.outline(pt.node, S, col, pt.k, .35 * pt.inside, pt.from);
+      if (!f.prev && j === 0 && pj < .14) {
+        const q = pj / .14, s0 = routeAt(segs, 0);
+        mk('circle', { cx: s0.x, cy: s0.y, r: (5 + 16 * EASE.out(q)) * k0, fill: 'none', stroke: col, 'stroke-width': 2, opacity: (.7 * (1 - q)).toFixed(3) }, g);
       }
-      const sp = Math.min(.22, .9 / f.count);
-      for (let j = 0; j < f.count; j++) {
-        const pj = p * (1 + sp * (f.count - 1)) - j * sp;
-        if (pj < 0 || pj > 1) continue;
-        const at = u => {
-          const uu = f.reverse ? 1 - u : u, n = f.edges.length, x = Math.min(n - 1e-6, uu * n), i = Math.floor(x);
-          const ge = edgeGeom(C.by[f.edges[i]], S, C.by);
-          return ge && bez(ge, x - i);
-        };
-        const pt = at(pj);
-        if (!pt) continue;
-        const e0 = C.by[f.edges[0]], k0 = e0.width / 2.5, ls = 13 * (e0.labelSize || 14) / 14;
-        const fade = Math.min(1, pj * 14, (1 - pj) * 14);
-        for (let k = 3; k >= 1; k--) {
-          const tp = at(Math.max(0, pj - k * .02));
-          if (tp) mk('circle', { cx: tp.x, cy: tp.y, r: (6 - k) * k0, fill: col, opacity: fade * (.4 - k * .1) }, g);
-        }
-        mk('circle', { cx: pt.x, cy: pt.y, r: 9 * k0, fill: col, opacity: fade, filter: this.glow }, g);
-        mk('circle', { cx: pt.x, cy: pt.y, r: 3.6 * k0, fill: '#fff', opacity: fade }, g);
-        if (f.label && j === 0) {
-          const w = textW(String(f.label), ls, 600) + ls * 1.2;
-          mk('rect', { x: pt.x - w / 2, y: pt.y - ls * 3.1, width: w, height: ls * 1.7, rx: ls * .85, fill: col, opacity: fade }, g);
-          mk('text', { x: pt.x, y: pt.y - ls * 2.25, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': ls, 'font-weight': 600, fill: th.bg, 'font-family': SANS, opacity: fade }, g).textContent = f.label;
-        }
+      for (let k = 3; k >= 1; k--) {
+        const tp = routeAt(segs, Math.max(0, pj - k * .02));
+        mk('circle', { cx: tp.x, cy: tp.y, r: (6 - k) * k0 * scale, fill: col, opacity: op * (.4 - k * .1) * (1 - pt.inside) }, g);
+      }
+      this.packet(pt, k0, col, scale, op);
+      if (f.label && j === 0) {
+        const w = textW(String(f.label), ls, 600) + ls * 1.2, lo = op * (1 - pt.inside);
+        mk('rect', { x: pt.x - w / 2, y: pt.y - ls * 3.1, width: w, height: ls * 1.7, rx: ls * .85, fill: col, opacity: lo }, g);
+        mk('text', { x: pt.x, y: pt.y - ls * 2.25, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': ls, 'font-weight': 600, fill: th.bg, 'font-family': SANS, opacity: lo }, g).textContent = f.label;
       }
     }
+  }
+  // Between two linked flows the packet glides into the component, waits while its outline fills, and glides out.
+  hold(f, t, S, col) {
+    const C = this.C, e = C.by[f.node], s = S[f.node];
+    const ra = flowRoute(f.a, S, C.by), rb = flowRoute(f.b, S, C.by);
+    if (!e || !s || !ra || !rb) return;
+    const pin = routeAt(ra, (f.t0 - f.a.t0) / (f.a.t1 - f.a.t0)), pout = routeAt(rb, (f.t1 - f.b.t0) / (f.b.t1 - f.b.t0));
+    const c = center(e, s, S), d = f.t1 - f.t0, gl = Math.min(.35, d / 2), x = t - f.t0;
+    let pt = c, inside = 1;
+    if (x < gl) { inside = EASE.inOut(x / gl); pt = lerpPt(pin, c, inside); }
+    else if (x > d - gl) { inside = EASE.inOut((d - x) / gl); pt = lerpPt(pout, c, inside); }
+    this.outline(f.node, S, col, clamp01(x / d), .35 * inside, pin);
+    const k0 = C.by[f.a.edges[0]].width / 2.5, breathe = 1 + .08 * Math.sin(x * 7) * inside;
+    this.packet(pt, k0, col, (1 - .4 * inside) * breathe, 1 - .45 * inside);
   }
 }
 

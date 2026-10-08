@@ -4,10 +4,14 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-08
+
 ### Added
 - Narrated demos: *What is Microsoft Access?* (English) and *¿Qué es Microsoft Access?* (Spanish, three voices), with their scenes in `examples/`.
 
 ### Changed
+- Flow packets no longer vanish at a component and reappear on the next arrow. When two arrows meet at a component (one multi-arrow flow, or two flows under 2.5 s apart), the packet glides inside, waits while the component's outline fills like a progress ring from where it entered, and glides out onto the next arrow.
+- A packet pops out of its source with a small ring, and lands by shrinking into the target with a ripple and a short glow.
 - README rewritten: how a request goes, prompts to try, narration languages and voice setup, FAQ.
 
 ## [1.3.0] - 2026-10-07
@@ -72,7 +76,8 @@ Found by an independent verification pass.
 
 First public release: scene engine and player, `motion build / check / shot / open / voice`, four examples, tests.
 
-[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/4lxn/motion-explainer/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/4lxn/motion-explainer/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/4lxn/motion-explainer/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/4lxn/motion-explainer/compare/v1.1.0...v1.1.1

@@ -82,7 +82,7 @@ exact timing. Every action takes `dur` (seconds) and most take `ease`
 | `swap` | `{ swap: ['a', 'b'] }` | exchange positions on arcs (sorting) |
 | `highlight` | `{ highlight: 'a', tone: 'bad' }` / `{ unhighlight: '*' }` | glowing outline (persists) |
 | `focus` | `{ focus: ['a', 'b'] }` / `{ unfocus: true }` | dims everything else; arrows between focused ids stay lit |
-| `flow` | `{ flow: 'e1', label: 'token', count: 3, reverse: true }`, `{ flow: ['e1', 'e2', 'e3'] }` | glowing packet along an arrow; a list = one packet along a route |
+| `flow` | `{ flow: 'e1', label: 'token', count: 3, reverse: true }`, `{ flow: ['e1', 'e2', 'e3'] }` | glowing packet along an arrow; a list = one packet along a route. It pops out of its source and lands with a ripple. Where two arrows meet at a component (in one list, or two flows less than 2.5 s apart), the packet goes **inside** it while its outline fills like a progress ring, then leaves on the next arrow |
 | `pulse` | `{ pulse: 'a', tone: 'warn' }` | one expanding ring |
 | `camera` | `{ camera: 'a' }`, `{ camera: ['a', 'b'], pad: 80 }`, `{ camera: 'all' }`, `{ camera: 'canvas' }`, `{ camera: { x, y, zoom: 2 } }` | scripted zoom/pan; viewers can still zoom freely and press 0 to rejoin |
 | `line` | `{ line: 'code', n: 3 }` (0 = none) | moves the code highlight |
