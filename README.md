@@ -87,8 +87,11 @@ Run `motion doctor` (plugin installs put `motion` on Claude's PATH) or `~/.claud
 | An algorithm, step by step | *"animate quicksort on [7, 2, 9, 4, 1, 8]"* |
 | An idea that changes over time | *"show why retries without jitter overload a server after an outage"* |
 | What went wrong | *"walk through yesterday's outage as an animation, failure path first"* |
+| Lots of graphics | *"explain a login flow: icon on every box, a terminal mockup for the curl call, a latency chart, zoom into the auth service, hud theme"* ([result](https://4lxn.github.io/motion-explainer/login-flow.html)) |
 | A product or tool | *"explain what Microsoft Access is and its main features, narrated in Spanish"* |
 | Onboarding | *"explain our deploy pipeline to a new engineer, with a step for every stage"* |
+
+Graphics are used only where they carry meaning, unless you name them: icons, charts, terminal / browser / phone mockups, kinetic titles, zooms, particles, the `hud` theme or a `glow` backdrop.
 
 Claude reads your code or docs first when the topic is your own system, and says "likely" in the narration for anything it inferred rather than checked.
 
@@ -131,6 +134,7 @@ Every dependency is pinned, and the model files are checked against pinned SHA-2
 | [Retries with jitter](examples/retry-jitter.scene.js) | an idea over time, live charts | [open](https://4lxn.github.io/motion-explainer/retry-jitter.html) |
 | [From git push to production](examples/showcase.scene.js) | icons, terminal and browser mockups, kinetic type, `hud` theme | [open](https://4lxn.github.io/motion-explainer/showcase.html) |
 | [DNS resolution](examples/dns-resolution.scene.js) | **made by the skill from one prompt, unedited**, with real `dig +trace` data | [open](https://4lxn.github.io/motion-explainer/dns-resolution.html) |
+| [How a login works](examples/login-flow.scene.js) | **rich visuals from one prompt**: hud theme, terminal that types, icons, zoom inside a service, latency chart, packets passing through components | [open](https://4lxn.github.io/motion-explainer/login-flow.html) |
 | [What is Microsoft Access?](examples/what-is-access.scene.js) | a product tour, **narrated** (English) | [open](https://4lxn.github.io/motion-explainer/what-is-access.html) |
 | [¿Qué es Microsoft Access?](examples/que-es-access.scene.js) | the same tour, **narrated in Spanish** with three voices | [abrir](https://4lxn.github.io/motion-explainer/que-es-access.html) |
 

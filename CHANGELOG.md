@@ -4,6 +4,9 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+### Added
+- `examples/login-flow`: a rich-visuals example from one prompt (hud theme, terminal, icons, zoom, chart, flow hand-offs), with a live demo and a README prompt row.
+
 ## [1.4.0] - 2026-10-08
 
 ### Added
