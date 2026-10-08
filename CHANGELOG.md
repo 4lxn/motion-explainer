@@ -4,6 +4,14 @@ All notable changes. Versions follow [semver](https://semver.org): a scene that 
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-07
+
+### Added
+- `examples/dns-resolution`: an explainer the skill made from one prompt, unedited, with a live demo.
+
+### Changed
+- The contact sheet (`motion shot` with no step) shows each step's full narration instead of cutting it at three lines.
+
 ### Fixed
 - `motion shot f.html 99` silently showed the last step; out-of-range steps now fail with the valid range.
 - Shot paths no longer contain `//` when `TMPDIR` ends in a slash.
@@ -45,7 +53,8 @@ Found by an independent verification pass.
 
 First public release: scene engine and player, `motion build / check / shot / open / voice`, four examples, tests.
 
-[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/4lxn/motion-explainer/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/4lxn/motion-explainer/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/4lxn/motion-explainer/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/4lxn/motion-explainer/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/4lxn/motion-explainer/releases/tag/v1.0.0

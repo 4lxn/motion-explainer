@@ -146,6 +146,7 @@ Elements: boxes, circles, text, arrows, zones, notes, code panels, icons, charts
 | [`binary-search`](examples/binary-search.scene.js) | algorithm; steps generated from a real run | [open](https://4lxn.github.io/motion-explainer/binary-search.html) |
 | [`retry-jitter`](examples/retry-jitter.scene.js) | an idea over time, live charts | [open](https://4lxn.github.io/motion-explainer/retry-jitter.html) |
 | [`showcase`](examples/showcase.scene.js) | icons, mockups, kinetic type, `hud` theme | [open](https://4lxn.github.io/motion-explainer/showcase.html) |
+| [`dns-resolution`](examples/dns-resolution.scene.js) | **made by the skill from one prompt, unedited**: real `dig +trace` data, TTL caching | [open](https://4lxn.github.io/motion-explainer/dns-resolution.html) |
 
 ## How it works
 

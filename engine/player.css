@@ -95,7 +95,7 @@ body.sheet{overflow:auto;height:auto}
 #sheet h1 span{font:13px var(--mono);color:var(--dimmer);margin-left:10px}
 #sheet .sc{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 #sheet svg{width:100%;display:block;border-bottom:1px solid var(--line)}
-#sheet .cc{height:58px;padding:7px 11px;font-size:12.5px;line-height:1.4;color:var(--dim);overflow:hidden}
+#sheet .cc{min-height:58px;padding:7px 11px;font-size:12.5px;line-height:1.4;color:var(--dim)}
 #sheet .cc b{color:var(--fg)}
 
 @media (prefers-reduced-motion:reduce){
