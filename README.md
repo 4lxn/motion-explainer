@@ -8,7 +8,7 @@ A [Claude Code](https://claude.com/claude-code) skill. One prompt in, one self-c
 
 [**▶ Live demos**](https://4lxn.github.io/motion-explainer/) · [Quick setup](#quick-setup) · [Scene format](REFERENCE.md)
 
-<img src="docs/demo.gif" alt="A motion-explainer animation: a terminal types git push, a pipeline lights up, a bar chart shrinks, a status page turns green" width="820">
+<img src="docs/demo.webp" alt="A motion-explainer animation: a terminal types git push, a pipeline lights up, a bar chart shrinks, a status page turns green" width="820">
 
 </div>
 
@@ -29,7 +29,7 @@ claude > storyboards 8 steps, writes a scene, builds it, screenshots every step,
 - **Optional local voice.** Narrate each step with the offline [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) TTS model. Nothing leaves your machine.
 
 <div align="center">
-<img src="docs/sheet.png" alt="Contact sheet: all 8 steps of the GitHub Actions explainer" width="820">
+<img src="docs/sheet.webp" alt="Contact sheet: all 8 steps of the GitHub Actions explainer" width="820">
 <br><sub>Every step of one explainer at a glance (<code>motion shot</code>). Step 5 zooms inside a runner.</sub>
 </div>
 
@@ -68,6 +68,7 @@ M=~/.claude/skills/motion-explainer/bin/motion
 $M build my-topic.scene.js       # inline everything into my-topic.html, then lint it
 $M shot  my-topic.html           # one PNG with every step's resting state
 $M shot  my-topic.html 4@1.5     # step 4, 1.5 s in: check motion mid-flight
+MOTION_SCALE=2 $M shot my-topic.html   # retina-sharp PNGs
 $M open  my-topic.html           # chromeless 1440x900 app window
 $M voice my-topic.scene.js       # optional: local narration, then build again
 ```

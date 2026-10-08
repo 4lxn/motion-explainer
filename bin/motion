@@ -50,7 +50,7 @@ headless() {  # headless <dump|png-path> <args...>
   shift
   prof=$(mktemp -d "${TMPDIR:-/tmp}/motion-chrome.XXXXXX")
   "$CHROME" --headless=new --disable-gpu --no-first-run --no-default-browser-check \
-    --hide-scrollbars --force-device-scale-factor=1 --user-data-dir="$prof" "$@" > "$prof/out" 2>/dev/null &
+    --hide-scrollbars --force-device-scale-factor="${scale:-1}" --user-data-dir="$prof" "$@" > "$prof/out" 2>/dev/null &
   pid=$!
   i=0 last=-1
   while [ $i -lt 300 ]; do
@@ -146,6 +146,7 @@ cmd_shot() {
   f=$(abspath "$1")
   [ -f "$f" ] || die "no such file: $1"
   dir=${MOTION_SHOTS:-${TMPDIR:-/tmp}/motion-shots}
+  scale=${MOTION_SCALE:-1}  # 2 for retina-sharp PNGs
   mkdir -p "$dir"
   base=$(basename "$f" .html)
   if [ -n "${2:-}" ]; then
