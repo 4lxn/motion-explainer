@@ -80,6 +80,7 @@ if "$M" --help | grep -q '^usage:' && "$M" | grep -q '^usage:'; then echo "ok   
 if out=$("$M" frob x 2>&1); then echo "FAIL unknown command exits 0"; fail=1
 elif printf '%s\n' "$out" | grep -q "unknown command 'frob'"; then echo "ok   unknown command is named"; else echo "FAIL unknown command message"; fail=1; fi
 [ "$("$M" --version)" = "$(cat "$ROOT/VERSION")" ] && echo "ok   --version" || { echo "FAIL --version"; fail=1; }
+grep -q "\"version\": \"$(cat "$ROOT/VERSION")\"" "$ROOT/.claude-plugin/plugin.json" && echo "ok   plugin.json version matches VERSION" || { echo "FAIL plugin.json version differs from VERSION"; fail=1; }
 bad=0
 for s in 12 12x x9 1x2x3 axb; do "$M" open "$ROOT/docs/index.html" "$s" > /dev/null 2>&1 && bad=1; done
 [ $bad = 0 ] && echo "ok   open rejects malformed sizes" || { echo "FAIL open accepted a malformed size"; fail=1; }

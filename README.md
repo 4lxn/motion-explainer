@@ -8,6 +8,8 @@ A [Claude Code](https://claude.com/claude-code) skill. One prompt in, one self-c
 
 [**▶ Live demos**](https://4lxn.github.io/motion-explainer/) · [Quick setup](#quick-setup) · [Scene format](REFERENCE.md)
 
+[![test](https://github.com/4lxn/motion-explainer/actions/workflows/test.yml/badge.svg)](https://github.com/4lxn/motion-explainer/actions/workflows/test.yml) [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 <img src="docs/demo.webp" alt="A motion-explainer animation: a terminal types git push, a pipeline lights up, a bar chart shrinks, a status page turns green" width="820">
 
 </div>
@@ -17,7 +19,7 @@ A [Claude Code](https://claude.com/claude-code) skill. One prompt in, one self-c
 ## What you get
 
 ```text
-you  > /motion how does a GitHub Actions job reach a self-hosted runner?
+you  > /motion-explainer how does a GitHub Actions job reach a self-hosted runner?
 claude > storyboards 8 steps, writes a scene, builds it, screenshots every step,
          fixes what looks wrong, then opens the player.
 ```
@@ -37,17 +39,28 @@ claude > storyboards 8 steps, writes a scene, builds it, screenshots every step,
 
 **Needs:** macOS or Linux, Google Chrome or Chromium, `bash`, `openssl`. Nothing to install from npm or pip.
 
+**Option A: plugin** (Claude Code updates it for you). Inside Claude Code:
+
+```text
+/plugin marketplace add 4lxn/motion-explainer
+/plugin install motion-explainer@motion-explainer
+```
+
+**Option B: git clone** (one command, update with `git pull`):
+
 ```sh
 git clone https://github.com/4lxn/motion-explainer ~/.claude/skills/motion-explainer
 ```
 
-That's it. In Claude Code:
+Pick one; if both are installed, the plugin copy wins. Then, in Claude Code:
 
 ```text
-/motion explain how TCP's three-way handshake works
+/motion-explainer how TCP's three-way handshake works
 ```
 
 Or just say *"animate this architecture"* or *"explain it with an animation"*.
+
+Something off? `~/.claude/skills/motion-explainer/bin/motion doctor` checks Chrome, `openssl` and an end-to-end build, and prints the fix for anything missing.
 
 <details>
 <summary><b>Chrome in a non-standard place?</b></summary>
@@ -64,13 +77,23 @@ On Windows, run it inside WSL with Chromium installed. The built HTML plays in a
 The skill drives `bin/motion`. You can too:
 
 ```sh
-M=~/.claude/skills/motion-explainer/bin/motion
+M=~/.claude/skills/motion-explainer/bin/motion   # on PATH as `motion` when installed as a plugin
+$M new   my-topic                # my-topic.scene.js from a starter (or: new my-topic architecture|algorithm|idea|story)
 $M build my-topic.scene.js       # inline everything into my-topic.html, then lint it
 $M shot  my-topic.html           # one PNG with every step's resting state
 $M shot  my-topic.html 4@1.5     # step 4, 1.5 s in: check motion mid-flight
 MOTION_SCALE=2 $M shot my-topic.html   # retina-sharp PNGs
 $M open  my-topic.html           # chromeless 1440x900 app window
 $M voice my-topic.scene.js       # optional: local narration, then build again
+$M doctor                        # check the setup
+```
+
+Lint errors name the scene line and suggest the closest valid name:
+
+```text
+error 'cache': unknown type 'bxo'. Did you mean 'box'?
+error step 2: unknown id 'dbb'. Did you mean 'db'?
+error js: Uncaught ReferenceError: lable is not defined (my-topic.scene.js:14)
 ```
 
 A scene is a small JS file: declare the elements, then the steps that reveal and move them.
@@ -133,11 +156,17 @@ scene.js ──► bin/motion build ──► one .html (engine + scene inlined,
 
 `engine/player.js` compiles the scene into tweens and paints SVG; `engine/player.css` styles the player; `bin/motion` is plain bash 3.2.
 
+## Updating
+
+Plugin: `claude plugin update motion-explainer@motion-explainer`. Git clone: `git -C ~/.claude/skills/motion-explainer pull`. What changed: [CHANGELOG.md](CHANGELOG.md).
+
 ## Development
 
 ```sh
-test/run.sh   # lints every example, runs player-control, resource, voice and layout tests
+test/run.sh   # lints every example, runs player-control, resource, voice, CLI and lint tests
 ```
+
+CI runs it on Ubuntu and macOS. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
